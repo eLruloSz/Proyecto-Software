@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Sistema de Ayudantías</title>
+
+<style>
+
+body{
+    font-family: Arial, Helvetica, sans-serif;
+    margin:0;
+    background:#f4f6f9;
+}
+
+/* NAVBAR */
+
+.navbar{
+    background:#002855;
+    color:white;
+    padding:15px;
+    display:flex;
+    justify-content:space-between;
+}
+
+.navbar h2{
+    margin:0;
+}
+
+.navbar button{
+    background:white;
+    border:none;
+    padding:8px 15px;
+    margin-left:10px;
+    border-radius:5px;
+    cursor:pointer;
+}
+
+/* HERO */
+
+.hero{
+    text-align:center;
+    padding:60px;
+    background:white;
+}
+
+.hero h1{
+    font-size:40px;
+}
+
+.hero p{
+    color:gray;
+}
+
+.hero button{
+    background:#0057b8;
+    color:white;
+    padding:12px 25px;
+    border:none;
+    border-radius:6px;
+    font-size:16px;
+    cursor:pointer;
+}
+
+/* CONTENEDOR */
+
+.container{
+    width:80%;
+    margin:auto;
+    margin-top:40px;
+}
+
+/* TARJETAS */
+
+.card{
+    background:white;
+    padding:20px;
+    margin-bottom:15px;
+    border-radius:8px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    box-shadow:0px 2px 8px rgba(0,0,0,0.1);
+}
+
+.card button{
+    background:#28a745;
+    color:white;
+    border:none;
+    padding:10px 18px;
+    border-radius:6px;
+    cursor:pointer;
+}
+
+/* PANEL ESTUDIANTE */
+
+.panel{
+    margin-top:50px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+th, td{
+    padding:12px;
+    border-bottom:1px solid #ddd;
+    text-align:left;
+}
+
+.status{
+    padding:5px 10px;
+    border-radius:5px;
+    color:white;
+}
+
+.revision{
+    background:orange;
+}
+
+.aceptado{
+    background:green;
+}
+
+.rechazado{
+    background:red;
+}
+
+footer{
+    text-align:center;
+    margin-top:60px;
+    padding:20px;
+    color:gray;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<!-- NAVBAR -->
+
+<div class="navbar">
+<h2>Sistema de Ayudantías</h2>
+
+<div>
+<button>Iniciar sesión</button>
+<button>Registrarse</button>
+</div>
+</div>
+
+<!-- HERO -->
+
+<div class="hero">
+
+<h1>Postula a ayudantías universitarias</h1>
+
+<p>
+Encuentra ayudantías disponibles y postula fácilmente.
+</p>
+
+<button>Ver ayudantías disponibles</button>
+
+</div>
+
+<!-- AYUDANTIAS -->
+
+<div class="container">
+
+<h2>Ayudantías disponibles</h2>
+
+<div class="card">
+<div>
+<h3>Programación I</h3>
+<p>Profesor: Juan Pérez</p>
+</div>
+
+<button>Postular</button>
+</div>
+
+<div class="card">
+<div>
+<h3>Bases de Datos</h3>
+<p>Profesor: María Soto</p>
+</div>
+
+<button>Postular</button>
+</div>
+
+<div class="card">
+<div>
+<h3>Estructuras de Datos</h3>
+<p>Profesor: Diego Díaz</p>
+</div>
+
+<button>Postular</button>
+</div>
+
+</div>
+
+<!-- PANEL ESTUDIANTE -->
+
+<div class="container panel">
+
+<h2>Mis postulaciones</h2>
+
+<table>
+
+<tr>
+<th>Asignatura</th>
+<th>Estado</th>
+</tr>
+
+<tr>
+<td>Programación I</td>
+<td><span class="status revision">En revisión</span></td>
+</tr>
+
+<tr>
+<td>Bases de Datos</td>
+<td><span class="status aceptado">Aceptado</span></td>
+</tr>
+
+<tr>
+<td>Estructuras de Datos</td>
+<td><span class="status rechazado">Rechazado</span></td>
+</tr>
+
+</table>
+
+</div>
+
+<footer>
+
+Sistema de Postulación a Ayudantías – Proyecto Universitario
+
+</footer>
+
+</body>
+</html>
