@@ -1,241 +1,723 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Sistema de Ayudantías</title>
-
-<style>
-
-body{
-    font-family: Arial, Helvetica, sans-serif;
-    margin:0;
-    background:#f4f6f9;
-}
-
-/* NAVBAR */
-
-.navbar{
-    background:#002855;
-    color:white;
-    padding:15px;
-    display:flex;
-    justify-content:space-between;
-}
-
-.navbar h2{
-    margin:0;
-}
-
-.navbar button{
-    background:white;
-    border:none;
-    padding:8px 15px;
-    margin-left:10px;
-    border-radius:5px;
-    cursor:pointer;
-}
-
-/* HERO */
-
-.hero{
-    text-align:center;
-    padding:60px;
-    background:white;
-}
-
-.hero h1{
-    font-size:40px;
-}
-
-.hero p{
-    color:gray;
-}
-
-.hero button{
-    background:#0057b8;
-    color:white;
-    padding:12px 25px;
-    border:none;
-    border-radius:6px;
-    font-size:16px;
-    cursor:pointer;
-}
-
-/* CONTENEDOR */
-
-.container{
-    width:80%;
-    margin:auto;
-    margin-top:40px;
-}
-
-/* TARJETAS */
-
-.card{
-    background:white;
-    padding:20px;
-    margin-bottom:15px;
-    border-radius:8px;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    box-shadow:0px 2px 8px rgba(0,0,0,0.1);
-}
-
-.card button{
-    background:#28a745;
-    color:white;
-    border:none;
-    padding:10px 18px;
-    border-radius:6px;
-    cursor:pointer;
-}
-
-/* PANEL ESTUDIANTE */
-
-.panel{
-    margin-top:50px;
-}
-
-table{
-    width:100%;
-    border-collapse:collapse;
-}
-
-th, td{
-    padding:12px;
-    border-bottom:1px solid #ddd;
-    text-align:left;
-}
-
-.status{
-    padding:5px 10px;
-    border-radius:5px;
-    color:white;
-}
-
-.revision{
-    background:orange;
-}
-
-.aceptado{
-    background:green;
-}
-
-.rechazado{
-    background:red;
-}
-
-footer{
-    text-align:center;
-    margin-top:60px;
-    padding:20px;
-    color:gray;
-}
-
-</style>
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Ayudantías UCN</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;400;600;800;900&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
-
 <body>
 
-<!-- NAVBAR -->
+  <!-- Fondo atmosférico -->
+  <div class="bg-atmosphere">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+  <div class="bg-grid"></div>
+  <canvas id="particleCanvas"></canvas>
 
-<div class="navbar">
-<h2>Sistema de Ayudantías</h2>
+  <!-- Contenido -->
+  <div class="content-wrapper">
 
-<div>
-<button>Iniciar sesión</button>
-<button>Registrarse</button>
-</div>
-</div>
+    <!-- NAVBAR -->
+    <nav class="navbar" id="navbar">
+      <a href="#" class="nav-brand">
+        <div class="brand-icon"><i class="fas fa-graduation-cap"></i></div>
+        Ayudantías UCN
+      </a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="#como-funciona">Cómo funciona</a></li>
+        <li><a href="#roles">Roles</a></li>
+        <li><a href="#asignaturas">Asignaturas</a></li>
+      </ul>
+      <div class="nav-actions">
+        <button class="btn btn-ghost" onclick="openModal('login')">Iniciar sesión</button>
+        <button class="btn btn-primary" onclick="openModal('register')">Registrarse</button>
+        <button class="nav-toggle" id="navToggle" aria-label="Abrir menú">
+          <i class="fas fa-bars"></i>
+        </button>
+      </div>
+    </nav>
 
-<!-- HERO -->
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="hero-badge">
+          <span class="pulse-dot"></span>
+          Periodo de postulación 2025-1 activo
+        </div>
+        <h1>
+          Postula como<br>
+          <span class="gradient-text">Ayudante UCN</span>
+        </h1>
+        <p class="hero-desc">
+          El sistema centralizado de postulación a ayudantías de la Universidad Católica del Norte. 
+          Postula, gestiona y selecciona ayudantes de forma transparente y eficiente.
+        </p>
+        <div class="hero-actions">
+          <button class="btn btn-primary btn-large" onclick="openModal('register')">
+            <i class="fas fa-paper-plane"></i>
+            Postular ahora
+          </button>
+          <button class="btn btn-outline-light btn-large" onclick="document.getElementById('como-funciona').scrollIntoView({behavior:'smooth'})">
+            <i class="fas fa-info-circle"></i>
+            Más información
+          </button>
+        </div>
+        <div class="hero-stats">
+          <div class="hero-stat">
+            <div class="stat-number" data-count="124">0</div>
+            <div class="stat-label">Asignaturas disponibles</div>
+          </div>
+          <div class="hero-stat">
+            <div class="stat-number" data-count="89">0</div>
+            <div class="stat-label">Profesores participantes</div>
+          </div>
+          <div class="hero-stat">
+            <div class="stat-number" data-count="340">0</div>
+            <div class="stat-label">Postulaciones este semestre</div>
+          </div>
+        </div>
+      </div>
+      <div class="hero-scroll-hint">
+        <span>Descubre más</span>
+        <i class="fas fa-chevron-down"></i>
+      </div>
+    </section>
 
-<div class="hero">
+    <!-- CÓMO FUNCIONA -->
+    <section id="como-funciona">
+      <div class="section-container">
+        <div class="section-header reveal">
+          <span class="section-tag">Proceso</span>
+          <h2>Como funciona el sistema</h2>
+          <p>Un flujo simple y transparente para todos los involucrados en el proceso de ayudantías.</p>
+        </div>
+        <div class="steps-grid">
+          <div class="step-card reveal">
+            <div class="step-icon"><i class="fas fa-cog"></i></div>
+            <div class="step-number">PASO 01</div>
+            <h3>Configuración</h3>
+            <p>Los administradores definen asignaturas, cupos de ayudantes y profesores asignados.</p>
+          </div>
+          <div class="step-card reveal">
+            <div class="step-icon"><i class="fas fa-search"></i></div>
+            <div class="step-number">PASO 02</div>
+            <h3>Exploración</h3>
+            <p>Los estudiantes revisan las asignaturas donde fueron aprobados y eligen dónde postular.</p>
+          </div>
+          <div class="step-card reveal">
+            <div class="step-icon"><i class="fas fa-file-alt"></i></div>
+            <div class="step-number">PASO 03</div>
+            <h3>Postulación</h3>
+            <p>El estudiante envía su postulación con su información académica automática.</p>
+          </div>
+          <div class="step-card reveal">
+            <div class="step-icon"><i class="fas fa-check-circle"></i></div>
+            <div class="step-number">PASO 04</div>
+            <h3>Selección</h3>
+            <p>El profesor revisa perfiles, notas y PPA, y selecciona a los ayudantes ideales.</p>
+          </div>
+        </div>
+      </div>
+    </section>
 
-<h1>Postula a ayudantías universitarias</h1>
+    <!-- ROLES -->
+    <section class="roles-section" id="roles">
+      <div class="section-container">
+        <div class="section-header reveal">
+          <span class="section-tag">Perfiles</span>
+          <h2>Herramientas para cada rol</h2>
+          <p>Cada usuario accede a funcionalidades específicas según su rol en el sistema.</p>
+        </div>
+        <div class="roles-grid">
+          <!-- Estudiante -->
+          <div class="role-card estudiante reveal">
+            <div class="role-icon-wrap"><i class="fas fa-user-graduate"></i></div>
+            <h3>Estudiante</h3>
+            <p class="role-desc">Postula a las ayudantías de las asignaturas que ya aprobaste.</p>
+            <ul class="role-features">
+              <li><i class="fas fa-check"></i> Ver asignaturas donde fue aprobado</li>
+              <li><i class="fas fa-check"></i> Postular con un click a ayudantías</li>
+              <li><i class="fas fa-check"></i> Revisar estado de sus postulaciones</li>
+              <li><i class="fas fa-check"></i> Ver su historial de ayudantías</li>
+              <li><i class="fas fa-check"></i> Perfil académico automático (PPA, notas)</li>
+            </ul>
+          </div>
+          <!-- Profesor -->
+          <div class="role-card profesor reveal">
+            <div class="role-icon-wrap"><i class="fas fa-chalkboard-teacher"></i></div>
+            <h3>Profesor</h3>
+            <p class="role-desc">Revisa y selecciona a los mejores candidatos para tus ayudantías.</p>
+            <ul class="role-features">
+              <li><i class="fas fa-check"></i> Ver postulantes de sus asignaturas</li>
+              <li><i class="fas fa-check"></i> Comparar perfiles (PPA, notas, historial)</li>
+              <li><i class="fas fa-check"></i> Seleccionar y rechazar postulantes</li>
+              <li><i class="fas fa-check"></i> Gestionar múltiples secciones</li>
+              <li><i class="fas fa-check"></i> Ver detalle completo de cada estudiante</li>
+            </ul>
+          </div>
+          <!-- Administrador -->
+          <div class="role-card admin reveal">
+            <div class="role-icon-wrap"><i class="fas fa-shield-alt"></i></div>
+            <h3>Administrador</h3>
+            <p class="role-desc">Controla la configuración general del sistema de ayudantías.</p>
+            <ul class="role-features">
+              <li><i class="fas fa-check"></i> Crear y editar asignaturas</li>
+              <li><i class="fas fa-check"></i> Definir cupos de ayudantes por asignatura</li>
+              <li><i class="fas fa-check"></i> Asignar profesores a asignaturas</li>
+              <li><i class="fas fa-check"></i> Abrir/cerrar periodos de postulación</li>
+              <li><i class="fas fa-check"></i> Reports y estadísticas generales</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
 
-<p>
-Encuentra ayudantías disponibles y postula fácilmente.
-</p>
+    <!-- ASIGNATURAS DESTACADAS -->
+    <section id="asignaturas">
+      <div class="section-container">
+        <div class="section-header reveal">
+          <span class="section-tag">Convocatoria</span>
+          <h2>Asignaturas con ayudantías disponibles</h2>
+          <p>Algunas de las asignaturas que actualmente aceptan postulaciones.</p>
+        </div>
+        <div class="courses-grid reveal" id="coursesGrid">
+          <!-- Se llena con JS -->
+        </div>
+      </div>
+    </section>
 
-<button>Ver ayudantías disponibles</button>
+    <!-- CTA -->
+    <section class="cta-section">
+      <div class="cta-box reveal">
+        <h2>Comienza tu experiencia como ayudante</h2>
+        <p>Registra tu cuenta con tu correo institucional UCN y postula a las ayudantías que te interesen.</p>
+        <div class="cta-actions">
+          <button class="btn btn-primary btn-large" onclick="openModal('register')">
+            <i class="fas fa-user-plus"></i>
+            Crear cuenta
+          </button>
+          <button class="btn btn-outline-light btn-large" onclick="openModal('login')">
+            <i class="fas fa-sign-in-alt"></i>
+            Ya tengo cuenta
+          </button>
+        </div>
+      </div>
+    </section>
 
-</div>
+    <!-- FOOTER -->
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <div class="brand-icon"><i class="fas fa-graduation-cap"></i></div>
+          Ayudantías UCN
+        </div>
+        <ul class="footer-links">
+          <li><a href="#">Inicio</a></li>
+          <li><a href="#como-funciona">Cómo funciona</a></li>
+          <li><a href="#roles">Roles</a></li>
+          <li><a href="#asignaturas">Asignaturas</a></li>
+        </ul>
+        <div class="footer-copy">2025 Universidad Católica del Norte</div>
+      </div>
+    </footer>
+  </div>
 
-<!-- AYUDANTIAS -->
+  <!-- MODAL LOGIN/REGISTER -->
+  <div class="modal-overlay" id="modalOverlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modalTitle">Iniciar sesión</h3>
+        <button class="modal-close" onclick="closeModal()" aria-label="Cerrar modal">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Se llena con JS -->
+      </div>
+    </div>
+  </div>
 
-<div class="container">
+  <!-- TOASTS -->
+  <div class="toast-container" id="toastContainer"></div>
 
-<h2>Ayudantías disponibles</h2>
+  <script>
+    /* ========================================
+       DATOS DE EJEMPLO (asignaturas)
+    ======================================== */
+    const coursesData = [
+      {
+        code: 'INF-101',
+        name: 'Programación I',
+        prof: 'Dr. Juan Pérez',
+        dept: 'Departamento de Ingeniería',
+        slots: 4,
+        applicants: 23,
+        open: true
+      },
+      {
+        code: 'INF-102',
+        name: 'Programación II',
+        prof: 'Dra. María López',
+        dept: 'Departamento de Ingeniería',
+        slots: 3,
+        applicants: 18,
+        open: true
+      },
+      {
+        code: 'MAT-101',
+        name: 'Cálculo I',
+        prof: 'Dr. Carlos Soto',
+        dept: 'Departamento de Matemáticas',
+        slots: 6,
+        applicants: 45,
+        open: true
+      },
+      {
+        code: 'FIS-101',
+        name: 'Física I',
+        prof: 'Dr. Andrés Muñoz',
+        dept: 'Departamento de Física',
+        slots: 4,
+        applicants: 31,
+        open: true
+      },
+      {
+        code: 'INF-201',
+        name: 'Estructura de Datos',
+        prof: 'Mg. Patricia Díaz',
+        dept: 'Departamento de Ingeniería',
+        slots: 3,
+        applicants: 15,
+        open: true
+      },
+      {
+        code: 'MAT-201',
+        name: 'Álgebra Lineal',
+        prof: 'Dr. Roberto Fernández',
+        dept: 'Departamento de Matemáticas',
+        slots: 3,
+        applicants: 12,
+        open: false
+      },
+      {
+        code: 'INF-301',
+        name: 'Bases de Datos',
+        prof: 'Mg. Claudia Reyes',
+        dept: 'Departamento de Ingeniería',
+        slots: 2,
+        applicants: 20,
+        open: true
+      },
+      {
+        code: 'INF-202',
+        name: 'Paradigmas de Programación',
+        prof: 'Dr. Felipe Torres',
+        dept: 'Departamento de Ingeniería',
+        slots: 2,
+        applicants: 9,
+        open: true
+      }
+    ];
 
-<div class="card">
-<div>
-<h3>Programación</h3>
-<p>Profesor: Juan Pérez</p>
-</div>
+    /* ========================================
+       RENDERIZAR ASIGNATURAS
+    ======================================== */
+    function renderCourses() {
+      const grid = document.getElementById('coursesGrid');
+      grid.innerHTML = coursesData.map(c => `
+        <div class="course-card" onclick="handleCourseClick('${c.code}', ${c.open})">
+          <div class="course-header">
+            <span class="course-code">${c.code}</span>
+            ${!c.open ? '<span style="font-size:0.8rem;color:var(--danger);font-weight:600;">Cerrada</span>' : `<span class="course-slots"><i class="fas fa-user-friends" style="margin-right:4px;"></i>${c.slots} cupos</span>`}
+          </div>
+          <h3>${c.name}</h3>
+          <div class="course-prof"><i class="fas fa-chalkboard-teacher"></i>${c.prof}</div>
+          <div class="course-footer">
+            <span class="course-dept">${c.dept.split(' de ')[1] || c.dept}</span>
+            <span class="course-applicants">
+              <i class="fas fa-users"></i>
+              ${c.applicants} postulantes
+            </span>
+          </div>
+        </div>
+      `).join('');
+    }
 
-<button>Postular</button>
-</div>
+    function handleCourseClick(code, open) {
+      if (!open) {
+        showToast('Esta asignatura no acepta postulaciones en este momento.', 'error');
+      } else {
+        showToast(`Debes iniciar sesión para postular a ${code}.`, 'info');
+        setTimeout(() => openModal('login'), 1200);
+      }
+    }
 
-<div class="card">
-<div>
-<h3>Bases de Datos</h3>
-<p>Profesor: María Soto</p>
-</div>
+    renderCourses();
 
-<button>Postular</button>
-</div>
+    /* ========================================
+       MODAL LOGIN / REGISTER
+    ======================================== */
+    let selectedRole = 'estudiante';
 
-<div class="card">
-<div>
-<h3>Estructuras de Datos</h3>
-<p>Profesor: Diego Díaz</p>
-</div>
+    function openModal(type) {
+      const overlay = document.getElementById('modalOverlay');
+      const title = document.getElementById('modalTitle');
+      const body = document.getElementById('modalBody');
 
-<button>Postular</button>
-</div>
+      if (type === 'login') {
+        title.textContent = 'Iniciar sesión';
+        body.innerHTML = buildLoginForm();
+      } else {
+        title.textContent = 'Crear cuenta';
+        body.innerHTML = buildRegisterForm();
+      }
 
-</div>
+      overlay.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
 
-<!-- PANEL ESTUDIANTE -->
+    function closeModal() {
+      document.getElementById('modalOverlay').classList.remove('active');
+      document.body.style.overflow = '';
+    }
 
-<div class="container panel">
+    // Cerrar modal al hacer clic fuera
+    document.getElementById('modalOverlay').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeModal();
+    });
 
-<h2>Mis postulaciones</h2>
+    // Cerrar con Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
 
-<table>
+    function buildLoginForm() {
+      return `
+        <div class="role-selector">
+          <button class="role-option selected" data-role="estudiante" onclick="selectRole(this)">
+            <i class="fas fa-user-graduate"></i>Estudiante
+          </button>
+          <button class="role-option" data-role="profesor" onclick="selectRole(this)">
+            <i class="fas fa-chalkboard-teacher"></i>Profesor
+          </button>
+          <button class="role-option" data-role="admin" onclick="selectRole(this)">
+            <i class="fas fa-shield-alt"></i>Admin
+          </button>
+        </div>
+        <div class="form-group">
+          <label for="loginEmail">Correo institucional</label>
+          <input type="email" id="loginEmail" class="form-input" placeholder="usuario@ucn.cl" autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label for="loginPass">Contraseña</label>
+          <input type="password" id="loginPass" class="form-input" placeholder="Tu contraseña" autocomplete="current-password">
+        </div>
+        <div class="form-footer">
+          <button class="btn btn-primary" onclick="handleLogin()">
+            <i class="fas fa-sign-in-alt"></i>Ingresar
+          </button>
+        </div>
+        <div class="form-switch">
+          No tienes cuenta? <a href="#" onclick="event.preventDefault();openModal('register')">Regístrate aquí</a>
+        </div>
+      `;
+    }
 
-<tr>
-<th>Asignatura</th>
-<th>Estado</th>
-</tr>
+    function buildRegisterForm() {
+      return `
+        <div class="role-selector">
+          <button class="role-option selected" data-role="estudiante" onclick="selectRole(this)">
+            <i class="fas fa-user-graduate"></i>Estudiante
+          </button>
+          <button class="role-option" data-role="profesor" onclick="selectRole(this)">
+            <i class="fas fa-chalkboard-teacher"></i>Profesor
+          </button>
+        </div>
+        <div class="form-group">
+          <label for="regName">Nombre completo</label>
+          <input type="text" id="regName" class="form-input" placeholder="Tu nombre completo" autocomplete="name">
+        </div>
+        <div class="form-group">
+          <label for="regEmail">Correo institucional</label>
+          <input type="email" id="regEmail" class="form-input" placeholder="usuario@ucn.cl" autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label for="regPass">Contraseña</label>
+          <input type="password" id="regPass" class="form-input" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+        </div>
+        <div class="form-group" id="rutGroup">
+          <label for="regRut">RUT</label>
+          <input type="text" id="regRut" class="form-input" placeholder="12.345.678-9">
+        </div>
+        <div class="form-footer">
+          <button class="btn btn-primary" onclick="handleRegister()">
+            <i class="fas fa-user-plus"></i>Crear cuenta
+          </button>
+        </div>
+        <div class="form-switch">
+          Ya tienes cuenta? <a href="#" onclick="event.preventDefault();openModal('login')">Inicia sesión</a>
+        </div>
+      `;
+    }
 
-<tr>
-<td>Programación I</td>
-<td><span class="status revision">En revisión</span></td>
-</tr>
+    function selectRole(btn) {
+      document.querySelectorAll('.role-option').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedRole = btn.dataset.role;
 
-<tr>
-<td>Bases de Datos</td>
-<td><span class="status aceptado">Aceptado</span></td>
-</tr>
+      // Mostrar/ocultar RUT según rol
+      const rutGroup = document.getElementById('rutGroup');
+      if (rutGroup) {
+        rutGroup.style.display = selectedRole === 'estudiante' ? 'block' : 'none';
+      }
+    }
 
-<tr>
-<td>Estructuras de Datos</td>
-<td><span class="status rechazado">Rechazado</span></td>
-</tr>
+    function handleLogin() {
+      const email = document.getElementById('loginEmail').value.trim();
+      const pass = document.getElementById('loginPass').value.trim();
 
-</table>
+      if (!email || !pass) {
+        showToast('Completa todos los campos.', 'error');
+        return;
+      }
+      if (!email.endsWith('@ucn.cl')) {
+        showToast('Usa tu correo institucional @ucn.cl', 'error');
+        return;
+      }
 
-</div>
+      showToast(`Bienvenido/a como ${selectedRole}. Redirigiendo...`, 'success');
+      closeModal();
+    }
 
-<footer>
+    function handleRegister() {
+      const name = document.getElementById('regName').value.trim();
+      const email = document.getElementById('regEmail').value.trim();
+      const pass = document.getElementById('regPass').value.trim();
 
-Sistema de Postulación a Ayudantías – Proyecto Universitario
+      if (!name || !email || !pass) {
+        showToast('Completa todos los campos.', 'error');
+        return;
+      }
+      if (!email.endsWith('@ucn.cl')) {
+        showToast('Usa tu correo institucional @ucn.cl', 'error');
+        return;
+      }
+      if (pass.length < 6) {
+        showToast('La contraseña debe tener al menos 6 caracteres.', 'error');
+        return;
+      }
 
-</footer>
+      showToast(`Cuenta creada como ${selectedRole}. Ya puedes iniciar sesión.`, 'success');
+      setTimeout(() => openModal('login'), 1500);
+    }
 
+    /* ========================================
+       TOASTS
+    ======================================== */
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+
+      const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle' };
+      toast.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i><span>${message}</span>`;
+
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.add('toast-out');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    /* ========================================
+       NAVBAR SCROLL + MOBILE TOGGLE
+    ======================================== */
+    const navbar = document.getElementById('navbar');
+    const navToggle = document.getElementById('navToggle');
+    const navLinks = document.getElementById('navLinks');
+
+    window.addEventListener('scroll', () => {
+      navbar.classList.toggle('scrolled', window.scrollY > 40);
+    });
+
+    navToggle.addEventListener('click', () => {
+      navLinks.classList.toggle('mobile-open');
+      const isOpen = navLinks.classList.contains('mobile-open');
+      navToggle.innerHTML = isOpen ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>';
+    });
+
+    // Cerrar menú mobile al hacer clic en un link
+    navLinks.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', () => {
+        navLinks.classList.remove('mobile-open');
+        navToggle.innerHTML = '<i class="fas fa-bars"></i>';
+      });
+    });
+
+    /* ========================================
+       SCROLL REVEAL (IntersectionObserver)
+    ======================================== */
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+    /* ========================================
+       CONTADORES ANIMADOS
+    ======================================== */
+    const counterObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const el = entry.target;
+          const target = parseInt(el.dataset.count);
+          animateCounter(el, target);
+          counterObserver.unobserve(el);
+        }
+      });
+    }, { threshold: 0.5 });
+
+    document.querySelectorAll('[data-count]').forEach(el => counterObserver.observe(el));
+
+    function animateCounter(el, target) {
+      let current = 0;
+      const duration = 1800;
+      const step = target / (duration / 16);
+
+      function update() {
+        current += step;
+        if (current >= target) {
+          el.textContent = target;
+          return;
+        }
+        el.textContent = Math.floor(current);
+        requestAnimationFrame(update);
+      }
+      requestAnimationFrame(update);
+    }
+
+    /* ========================================
+       PARTÍCULAS EN CANVAS
+    ======================================== */
+    const canvas = document.getElementById('particleCanvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    let mouseX = -1000, mouseY = -1000;
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // Rastrear posición del mouse para interacción con partículas
+    document.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    });
+
+    class Particle {
+      constructor() {
+        this.reset();
+      }
+
+      reset() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size = Math.random() * 2 + 0.5;
+        this.speedX = (Math.random() - 0.5) * 0.4;
+        this.speedY = (Math.random() - 0.5) * 0.4;
+        this.opacity = Math.random() * 0.5 + 0.1;
+        this.baseOpacity = this.opacity;
+      }
+
+      update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+
+        // Interacción con mouse: las partículas se alejan suavemente
+        const dx = this.x - mouseX;
+        const dy = this.y - mouseY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 150) {
+          const force = (150 - dist) / 150;
+          this.x += (dx / dist) * force * 0.8;
+          this.y += (dy / dist) * force * 0.8;
+          this.opacity = Math.min(1, this.baseOpacity + force * 0.5);
+        } else {
+          this.opacity += (this.baseOpacity - this.opacity) * 0.05;
+        }
+
+        // Wrap around
+        if (this.x < -10) this.x = canvas.width + 10;
+        if (this.x > canvas.width + 10) this.x = -10;
+        if (this.y < -10) this.y = canvas.height + 10;
+        if (this.y > canvas.height + 10) this.y = -10;
+      }
+
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, Math.max(0.1, this.size), 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0, 180, 216, ${this.opacity})`;
+        ctx.fill();
+      }
+    }
+
+    // Crear partículas (cantidad según tamaño de pantalla)
+    function initParticles() {
+      const count = Math.min(80, Math.floor((canvas.width * canvas.height) / 15000));
+      particles = [];
+      for (let i = 0; i < count; i++) {
+        particles.push(new Particle());
+      }
+    }
+    initParticles();
+
+    function drawConnections() {
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 120) {
+            const opacity = (1 - dist / 120) * 0.15;
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = `rgba(0, 180, 216, ${opacity})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
+    function animateParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+      drawConnections();
+      requestAnimationFrame(animateParticles);
+    }
+
+    // Respetar preferencia de movimiento reducido
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!prefersReduced) {
+      animateParticles();
+    }
+  </script>
 </body>
 </html>
