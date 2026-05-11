@@ -136,6 +136,7 @@
       </div>
     </section>
 
+
     <!-- FOOTER -->
     <footer class="footer">
       <div class="footer-inner">
@@ -152,6 +153,81 @@
       </div>
     </footer>
   </div>
+      <!-- APP COMPLETA ESTUDIANTE -->
+  <div id="app-estudiante" class="app-page">
+      
+      <!-- Cabecera Fija -->
+      <header class="app-header">
+        <div class="app-header-left">
+          <div class="brand-icon-sm"><i class="fas fa-graduation-cap"></i></div>
+          <span>Sistema de Ayudantías</span>
+        </div>
+        <div class="app-header-right">
+          <div class="app-user-pill">
+            <div class="app-avatar-sm" id="headerAvatar">JP</div>
+            <span id="headerName">Juan Pérez</span>
+          </div>
+          <button class="btn btn-ghost" style="padding: 8px 16px;" onclick="logout()">
+            <i class="fas fa-sign-out-alt"></i> Salir
+          </button>
+        </div>
+      </header>
+
+      <!-- Menú de Pestañas -->
+      <div class="app-tabs-container">
+        <div class="app-tabs">
+          <button class="app-tab active" onclick="switchView('disponibles', this)">Postular a Ayudantías</button>
+          <button class="app-tab" onclick="switchView('mis-postulaciones', this)">Mis Postulaciones</button>
+          <button class="app-tab" onclick="switchView('perfil', this)">Mi Perfil</button>
+        </div>
+      </div>
+
+      <!-- Contenido que cambia según el Tab -->
+      <div class="app-content">
+        
+        <div id="view-disponibles" class="view-section active">
+          <div class="app-page-title">
+            <h1>Asignaturas Disponibles</h1>
+            <p>Postula solo a las asignaturas donde tu nota final es aprobada (≥ 4.0).</p>
+          </div>
+          <div class="available-courses-grid" id="dashCoursesGrid"></div>
+        </div>
+
+        <div id="view-mis-postulaciones" class="view-section">
+          <div class="app-page-title">
+            <h1>Estado de Mis Postulaciones</h1>
+            <p>Revisa si los profesores ya han revisado tu postulación.</p>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr><th>Código</th><th>Asignatura</th><th>Profesor</th><th>Estado</th><th>Acción</th></tr>
+              </thead>
+              <tbody id="tablePostulaciones"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="view-perfil" class="view-section">
+          <div class="app-page-title">
+            <h1>Mi Perfil Académico</h1>
+            <p>Información extraída automáticamente del sistema UCN.</p>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table">
+              <tbody>
+                <tr><td style="color:var(--muted); width:250px;">Nombre Completo</td><td style="font-weight:600;" id="perfilNombre">Juan Pérez</td></tr>
+                <tr><td style="color:var(--muted);">RUT</td><td style="font-weight:600;" id="perfilRut">21.290.036-2</td></tr>
+                <tr><td style="color:var(--muted);">Correo</td><td style="font-weight:600;" id="perfilCorreo">juan.perez@alumnos.ucn.cl</td></tr>
+                <tr><td style="color:var(--muted);">PPA (Promedio Ponderado)</td><td style="font-weight:800; font-size:1.2rem; color:var(--accent-light);">5.4</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
 
     <!-- MODAL LOGIN/REGISTER -->
   <div class="modal-overlay" id="modalOverlay" role="dialog" aria-modal="true">
@@ -189,6 +265,7 @@
   <!-- TOASTS -->
   <div class="toast-container" id="toastContainer"></div>
   <script src="js/dataSubject.js" defer></script>
+  <script src="js/dataStudents.js" defer></script>
   <script src="js/ui.js" defer></script>  
   <script src="js/particles.js" defer></script>
 </body>
