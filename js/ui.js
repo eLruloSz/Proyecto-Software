@@ -121,7 +121,7 @@ function renderCourses() {
 
         body.innerHTML = `
           <div style="margin-bottom: 2rem;">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Universidad_Cat%C3%B3lica_del_Norte.svg/1200px-Universidad_Cat%C3%B3lica_del_Norte.svg.png" alt="UCN" style="height: 50px; margin-bottom: 1rem; filter: brightness(0) invert(1);">
+            <img src="https://www.ucn.cl/content/uploads/2023/05/ucn-escudo-full-color.png" alt="UCN" style="height: 50px; margin-bottom: 1rem; ">
             <p style="font-size: 1.1rem; font-weight: 600; color: var(--fg);">Iniciar sesión con Google Workspace</p>
             <p style="font-size: 0.9rem; color: var(--muted); margin-top: 5px;">Continuar como <strong style="color:var(--accent-light); text-transform:capitalize;">${role === 'docente' ? 'Docente' : role}</strong></p>
           </div>
@@ -143,7 +143,7 @@ function renderCourses() {
             Acceder
           </button>
           <p style="font-size: 0.8rem; color: var(--muted); margin-top: 1rem;">
-            * Simulación de entorno Frontend. Se conectarà a API de Google Workspace posteriormente.
+            * Simulación de entorno Frontend. Se conectará a API de Google Workspace posteriormente.
           </p>
         `;
         
