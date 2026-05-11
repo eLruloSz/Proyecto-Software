@@ -1,5 +1,5 @@
 /* ========================================
-       DATOS DE EJEMPLO (asignaturas)
+       DATOS DE EJEMPLO (ramos)
     ======================================== */
     const coursesData = [
       {

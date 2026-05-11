@@ -28,25 +28,21 @@ function renderCourses() {
     renderCourses();
 
     /* ========================================
-       MODALES LOGIN / REGISTER / GOOGLE MOCK
+       MODALES LOGIN/ GOOGLE MOCK
     ======================================== */
     let loginAttemptRole = null;
 
     function openModal(type) {
-      const overlay = document.getElementById('modalOverlay');
-      const title = document.getElementById('modalTitle');
-      const body = document.getElementById('modalBody');
-
-      if (type === 'login') {
-        title.textContent = 'Autenticación UCN';
-        body.innerHTML = buildRBACLogin();
-      } else {
-        title.textContent = 'Solicitar acceso';
-        body.innerHTML = buildRegisterForm();
-      }
-
-      overlay.classList.add('active');
-      document.body.style.overflow = 'hidden';
+     const overlay = document.getElementById('modalOverlay');
+     const title = document.getElementById('modalTitle');
+     const body = document.getElementById('modalBody');
+  
+     // Siempre abre el login, sin importar el 'type'
+     title.textContent = 'Autenticación UCN';
+     body.innerHTML = buildRBACLogin();
+  
+     overlay.classList.add('active');
+     document.body.style.overflow = 'hidden';
     }
 
     function closeModal() {
@@ -105,10 +101,6 @@ function renderCourses() {
             </div>
           </button>
         </div>
-        <div style="margin-top: 1.5rem; text-align: center;">
-          <span style="font-size: 0.85rem; color: var(--muted);">¿No tienes cuenta? </span>
-          <a href="#" onclick="event.preventDefault();closeModal();setTimeout(()=>openModal('register'),300)">Solicitar registro</a>
-        </div>
       `;
     }
 
@@ -160,33 +152,6 @@ function renderCourses() {
       }, 300);
     }
 
-    // Registro (solo para solicitar acceso)
-    function buildRegisterForm() {
-      return `
-        <div style="background:rgba(244,162,97,0.1); border:1px solid rgba(244,162,97,0.2); border-radius:var(--radius-sm); padding:12px 16px; margin-bottom:1.5rem; font-size:0.85rem; color:var(--warning); display:flex; gap:10px; align-items:flex-start;">
-          <i class="fas fa-lock" style="margin-top:2px;"></i>
-          <span>El acceso al sistema es exclusivo para la comunidad UCN mediante Google Workspace. Usa este formulario solo si eres administrativo y necesitas que te asignen un rol.</span>
-        </div>
-        <div class="form-group">
-          <label for="regName">Nombre completo</label>
-          <input type="text" id="regName" class="form-input" placeholder="Tu nombre completo">
-        </div>
-        <div class="form-group">
-          <label for="regEmail">Correo UCN</label>
-          <input type="email" id="regEmail" class="form-input" placeholder="usuario@ucn.cl">
-        </div>
-        <div class="form-group">
-          <label for="regMotivo">Motivo de solicitud</label>
-          <textarea id="regMotivo" class="form-input" rows="3" placeholder="¿Por qué necesitas acceso al sistema?" style="resize: vertical;"></textarea>
-        </div>
-        <div class="form-footer">
-          <button class="btn btn-primary" onclick="handleRegisterRequest()">
-            <i class="fas fa-paper-plane"></i>Enviar solicitud
-          </button>
-        </div>
-      `;
-    }
-
     /* ========================================
        LÓGICA DE AUTENTICACIÓN (MOCK RBAC)
     ======================================== */
@@ -214,24 +179,6 @@ function renderCourses() {
       setTimeout(() => {
         alert(`--- REDIRECCIÓN SIMULADA ---\n\nRol: ${roleNames[loginAttemptRole]}\nUsuario: ${userName}\nCorreo: ${email}\n\n(En el siguiente paso, esta landing page desaparecerá y cargará el Dashboard de ${roleNames[loginAttemptRole]})`);
       }, 1500);
-    }
-
-    function handleRegisterRequest() {
-      const name = document.getElementById('regName').value.trim();
-      const email = document.getElementById('regEmail').value.trim();
-      const motivo = document.getElementById('regMotivo').value.trim();
-
-      if (!name || !email || !motivo) {
-        showToast('Completa todos los campos para enviar la solicitud.', 'error');
-        return;
-      }
-      if (!email.endsWith('@ucn.cl')) {
-        showToast('Debes usar un correo institucional válido terminado en @ucn.cl', 'error');
-        return;
-      }
-
-      showToast('Solicitud enviada correctamente. El administrador revisará tu petición.', 'success');
-      closeModal();
     }
 
     /* ========================================

@@ -30,12 +30,10 @@
       </a>
       <ul class="nav-links" id="navLinks">
         <li><a href="#como-funciona">Cómo funciona</a></li>
-        <li><a href="#roles">Roles</a></li>
         <li><a href="#asignaturas">Asignaturas</a></li>
       </ul>
       <div class="nav-actions">
-        <button class="btn btn-ghost" onclick="openModal('login')">Iniciar sesión</button>
-        <button class="btn btn-primary" onclick="openModal('register')">Registrarse</button>
+        <button class="btn btn-primary" onclick="openModal('login')">Iniciar sesión</button>
         <button class="nav-toggle" id="navToggle" aria-label="Abrir menú">
           <i class="fas fa-bars"></i>
         </button>
@@ -47,18 +45,17 @@
       <div class="hero-inner">
         <div class="hero-badge">
           <span class="pulse-dot"></span>
-          Periodo de postulación 2025-1 activo
+          Periodo de postulación 2026-1 activo
         </div>
         <h1>
           Postula como<br>
           <span class="gradient-text">Ayudante UCN</span>
         </h1>
         <p class="hero-desc">
-          El sistema centralizado de postulación a ayudantías de la Universidad Católica del Norte. 
-          Postula, gestiona y selecciona ayudantes de forma transparente y eficiente.
+          Sistema centralizado de postulación a ayudantías de la Universidad Católica del Norte. 
         </p>
         <div class="hero-actions">
-          <button class="btn btn-primary btn-large" onclick="openModal('register')">
+          <button class="btn btn-primary btn-large" onclick="openModal('login')">
             <i class="fas fa-paper-plane"></i>
             Postular ahora
           </button>
@@ -69,15 +66,15 @@
         </div>
         <div class="hero-stats">
           <div class="hero-stat">
-            <div class="stat-number" data-count="124">0</div>
+            <div class="stat-number" data-count="25">0</div>
             <div class="stat-label">Asignaturas disponibles</div>
           </div>
           <div class="hero-stat">
-            <div class="stat-number" data-count="89">0</div>
+            <div class="stat-number" data-count="70">0</div>
             <div class="stat-label">Profesores participantes</div>
           </div>
           <div class="hero-stat">
-            <div class="stat-number" data-count="340">0</div>
+            <div class="stat-number" data-count="100">0</div>
             <div class="stat-label">Postulaciones este semestre</div>
           </div>
         </div>
@@ -125,58 +122,6 @@
       </div>
     </section>
 
-    <!-- ROLES -->
-    <section class="roles-section" id="roles">
-      <div class="section-container">
-        <div class="section-header reveal">
-          <span class="section-tag">Perfiles</span>
-          <h2>Herramientas para cada rol</h2>
-          <p>Cada usuario accede a funcionalidades específicas según su rol en el sistema.</p>
-        </div>
-        <div class="roles-grid">
-          <!-- Estudiante -->
-          <div class="role-card estudiante reveal">
-            <div class="role-icon-wrap"><i class="fas fa-user-graduate"></i></div>
-            <h3>Estudiante</h3>
-            <p class="role-desc">Postula a las ayudantías de las asignaturas que ya aprobaste.</p>
-            <ul class="role-features">
-              <li><i class="fas fa-check"></i> Ver asignaturas donde fue aprobado</li>
-              <li><i class="fas fa-check"></i> Postular con un click a ayudantías</li>
-              <li><i class="fas fa-check"></i> Revisar estado de sus postulaciones</li>
-              <li><i class="fas fa-check"></i> Ver su historial de ayudantías</li>
-              <li><i class="fas fa-check"></i> Perfil académico automático (PPA, notas)</li>
-            </ul>
-          </div>
-          <!-- Profesor -->
-          <div class="role-card profesor reveal">
-            <div class="role-icon-wrap"><i class="fas fa-chalkboard-teacher"></i></div>
-            <h3>Profesor</h3>
-            <p class="role-desc">Revisa y selecciona a los mejores candidatos para tus ayudantías.</p>
-            <ul class="role-features">
-              <li><i class="fas fa-check"></i> Ver postulantes de sus asignaturas</li>
-              <li><i class="fas fa-check"></i> Comparar perfiles (PPA, notas, historial)</li>
-              <li><i class="fas fa-check"></i> Seleccionar y rechazar postulantes</li>
-              <li><i class="fas fa-check"></i> Gestionar múltiples secciones</li>
-              <li><i class="fas fa-check"></i> Ver detalle completo de cada estudiante</li>
-            </ul>
-          </div>
-          <!-- Administrador -->
-          <div class="role-card admin reveal">
-            <div class="role-icon-wrap"><i class="fas fa-shield-alt"></i></div>
-            <h3>Administrador</h3>
-            <p class="role-desc">Controla la configuración general del sistema de ayudantías.</p>
-            <ul class="role-features">
-              <li><i class="fas fa-check"></i> Crear y editar asignaturas</li>
-              <li><i class="fas fa-check"></i> Definir cupos de ayudantes por asignatura</li>
-              <li><i class="fas fa-check"></i> Asignar profesores a asignaturas</li>
-              <li><i class="fas fa-check"></i> Abrir/cerrar periodos de postulación</li>
-              <li><i class="fas fa-check"></i> Reports y estadísticas generales</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </section>
-
     <!-- ASIGNATURAS DESTACADAS -->
     <section id="asignaturas">
       <div class="section-container">
@@ -191,24 +136,6 @@
       </div>
     </section>
 
-    <!-- CTA -->
-    <section class="cta-section">
-      <div class="cta-box reveal">
-        <h2>Comienza tu experiencia como ayudante</h2>
-        <p>Registra tu cuenta con tu correo institucional UCN y postula a las ayudantías que te interesen.</p>
-        <div class="cta-actions">
-          <button class="btn btn-primary btn-large" onclick="openModal('register')">
-            <i class="fas fa-user-plus"></i>
-            Crear cuenta
-          </button>
-          <button class="btn btn-outline-light btn-large" onclick="openModal('login')">
-            <i class="fas fa-sign-in-alt"></i>
-            Ya tengo cuenta
-          </button>
-        </div>
-      </div>
-    </section>
-
     <!-- FOOTER -->
     <footer class="footer">
       <div class="footer-inner">
@@ -219,7 +146,6 @@
         <ul class="footer-links">
           <li><a href="#">Inicio</a></li>
           <li><a href="#como-funciona">Cómo funciona</a></li>
-          <li><a href="#roles">Roles</a></li>
           <li><a href="#asignaturas">Asignaturas</a></li>
         </ul>
         <div class="footer-copy">2025 Universidad Católica del Norte</div>
@@ -262,11 +188,8 @@
 
   <!-- TOASTS -->
   <div class="toast-container" id="toastContainer"></div>
-  //DATA
   <script src="js/dataSubject.js" defer></script>
-  //UI
-  <script src="js/ui.js" defer></script>
-  //PARTICULAS
+  <script src="js/ui.js" defer></script>  
   <script src="js/particles.js" defer></script>
 </body>
 </html>
