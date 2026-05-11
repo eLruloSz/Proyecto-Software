@@ -155,32 +155,44 @@ function renderCourses() {
     /* ========================================
        LÓGICA DE AUTENTICACIÓN (MOCK RBAC)
     ======================================== */
-    function handleMockLogin() {
-      const email = document.getElementById('mockEmail').value.trim();
-      const pass = document.getElementById('mockPass').value.trim();
-      const errorDiv = document.getElementById('mockEmailError');
+   /* ========================================
+   LÓGICA DE AUTENTICACIÓN (MOCK RBAC)
+======================================== */
+function handleMockLogin() {
+  const email = document.getElementById('mockEmail').value.trim();
+  const pass = document.getElementById('mockPass').value.trim();
+  const errorDiv = document.getElementById('mockEmailError');
 
-      if (!pass) {
-        showToast('Debes ingresar tu contraseña.', 'error');
-        return;
-      }
+  if (!pass) {
+    showToast('Debes ingresar tu contraseña.', 'error');
+    return;
+  }
 
-      if (pass.length < 4) {
-        showToast('Contraseña incorrecta.', 'error');
-        return;
-      }
+  if (pass.length < 4) {
+    showToast('Contraseña incorrecta.', 'error');
+    return;
+  }
 
-      const roleNames = { estudiante: 'Estudiante', docente: 'Profesor', admin: 'Administrador' };
-      const userName = email.split('@')[0].replace(/\./g, ' ');
+  const roleNames = { estudiante: 'Estudiante', docente: 'Profesor', admin: 'Administrador' };
+  
+  // Extraemos el nombre del correo electrónico y lo guardamos
+  const userName = email.split('@')[0].replace(/\./g, ' ');
+  localStorage.setItem('docenteNombre', userName);
 
-      showToast(`Bienvenido/a (${roleNames[loginAttemptRole]}). Redirigiendo al sistema...`, 'success');
-      closeGoogleMock();
+  showToast(`Bienvenido/a (${roleNames[loginAttemptRole]}). Redirigiendo al sistema...`, 'success');
+  closeGoogleMock();
 
-      setTimeout(() => {
-        alert(`--- REDIRECCIÓN SIMULADA ---\n\nRol: ${roleNames[loginAttemptRole]}\nUsuario: ${userName}\nCorreo: ${email}\n\n(En el siguiente paso, esta landing page desaparecerá y cargará el Dashboard de ${roleNames[loginAttemptRole]})`);
-      }, 1500);
+  setTimeout(() => {
+    // LÓGICA DE REDIRECCIÓN:
+    if (loginAttemptRole === 'docente') {
+      // Redirigir a la vista del profesor
+      window.location.href = 'dashboard-docente.html';
+    } else {
+      // Mantener la alerta de prueba para Estudiante y Administrador por ahora
+      alert(`--- REDIRECCIÓN SIMULADA ---\n\nRol: ${roleNames[loginAttemptRole]}\nUsuario: ${userName}\nCorreo: ${email}\n\n(En el siguiente paso, esta landing page desaparecerá y cargará el Dashboard de ${roleNames[loginAttemptRole]})`);
     }
-
+  }, 1500);
+}
     /* ========================================
        TOASTS
     ======================================== */

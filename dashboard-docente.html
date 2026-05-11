@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel Docente - Ayudantías UCN</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;400;600;800;900&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    .dashboard-container {
+      padding: 120px 2rem 60px;
+      max-width: 1000px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+    .panel-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: var(--shadow);
+    }
+    .applicant-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.2rem;
+      border-bottom: 1px solid var(--border);
+      transition: var(--transition);
+    }
+    .applicant-row:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .applicant-row:last-child {
+      border-bottom: none;
+    }
+    .applicant-avatar {
+      width: 45px; height: 45px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.2rem;
+    }
+    .status-badge {
+      font-size: 0.8rem;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 700;
+    }
+    .status-pendiente { background: rgba(244, 162, 97, 0.2); color: var(--warning); border: 1px solid var(--warning); }
+    .status-aprobado { background: rgba(46, 196, 182, 0.2); color: var(--success); border: 1px solid var(--success); }
+  </style>
+</head>
+<body>
+
+  <div class="bg-atmosphere">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+  </div>
+  <div class="bg-grid"></div>
+
+  <nav class="navbar scrolled">
+    <a href="index.html" class="nav-brand">
+      <div class="brand-icon"><i class="fas fa-graduation-cap"></i></div>
+      Ayudantías UCN <span style="font-size: 0.8rem; color: var(--accent-light); margin-left: 10px;">| Panel Docente</span>
+    </a>
+    <div class="nav-actions">
+      <button class="btn btn-ghost" onclick="window.location.href='index.html'">
+        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+      </button>
+    </div>
+  </nav>
+
+  <div class="dashboard-container">
+    <div class="section-header" style="text-align: left; margin-bottom: 3rem;">
+      <span class="section-tag">Gestión Académica</span>
+      <h2 id="welcomeText">Bienvenido, Profesor</h2>
+      <p>Administra las postulaciones recibidas para tus asignaturas activas.</p>
+    </div>
+
+    <div id="dynamicDashboardContent"></div>
+  </div>
+
+  <script src="js/dataSubject.js"></script>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // 1. Obtener y formatear el nombre del profesor
+      let rawName = localStorage.getItem('docenteNombre') || 'Alejandro Paolini';
+      // Capitalizar nombre (ej. "alejandro" -> "Alejandro")
+      rawName = rawName.replace(/\b\w/g, char => char.toUpperCase());
+      document.getElementById('welcomeText').innerHTML = `Bienvenido, Profesor <span class="gradient-text">${rawName}</span>`;
+
+      // 2. Traer cursos de Programación
+      // Filtramos para buscar algún curso que tenga "Programación" en su nombre
+      let cursosMostrar = coursesData.filter(c => c.name.includes('Programación'));
+      
+      // Si por alguna razón no los encuentra, hace un fallback seguro
+      if (cursosMostrar.length === 0) {
+        cursosMostrar = [coursesData[0]]; 
+      }
+
+      // 3. Crear base de datos local y ficticia de postulantes SOLO para esta vista
+      const postulantesFicticios = {
+        'Programación I': [
+          { nombre: 'Benjamin Bustamante', carrera: 'Ingeniería Civil en Computación', estado: 'Pendiente', clase: 'status-pendiente' },
+          { nombre: 'Joaquin Carrasco', carrera: 'Ingeniería Civil en Computación', estado: 'Pendiente', clase: 'status-pendiente' },
+          { nombre: 'Camila Rojas', carrera: 'Ingeniería Civil Industrial', estado: 'Aprobado', clase: 'status-aprobado' }
+        ],
+        'Programación Orientada a Objetos': [
+          { nombre: 'Abraham Sepulveda', carrera: 'Ingeniería Civil en Computación', estado: 'Pendiente', clase: 'status-pendiente' }
+        ]
+      };
+
+      // 4. Generar el HTML
+      const container = document.getElementById('dynamicDashboardContent');
+      let htmlContent = '';
+
+      cursosMostrar.forEach(curso => {
+        // Buscar si tenemos postulantes creados para este nombre de curso, si no, usar un array vacío
+        const postulantes = postulantesFicticios[curso.name] || [];
+
+        htmlContent += `
+          <div class="panel-card reveal visible">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
+              <div>
+                <span class="course-code">${curso.code}</span>
+                <h3 style="margin-top: 8px; font-size: 1.4rem;">${curso.name}</h3>
+              </div>
+              <div style="text-align: right; color: var(--muted); font-size: 0.9rem;">
+                <i class="fas fa-users"></i> ${postulantes.length} / ${curso.slots} Cupos solicitados
+              </div>
+            </div>
+
+            <div style="background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--border);">
+              ${postulantes.length > 0 ? postulantes.map(p => `
+                <div class="applicant-row">
+                  <div style="display: flex; align-items: center; gap: 15px;">
+                    <div class="applicant-avatar">${p.nombre.charAt(0)}</div>
+                    <div>
+                      <div style="font-weight: 700; color: var(--fg); font-size: 1.05rem;">${p.nombre}</div>
+                      <div style="font-size: 0.85rem; color: var(--muted);"><i class="fas fa-user-graduate" style="margin-right: 5px;"></i>${p.carrera}</div>
+                    </div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 15px;">
+                    <span class="status-badge ${p.clase}">${p.estado}</span>
+                    <button class="btn btn-ghost" style="padding: 8px 14px; font-size: 0.85rem;">
+                      Revisar <i class="fas fa-arrow-right" style="margin-left: 5px;"></i>
+                    </button>
+                  </div>
+                </div>
+              `).join('') : '<div style="padding: 1.5rem; text-align: center; color: var(--muted);">No hay postulantes pendientes.</div>'}
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = htmlContent;
+    });
+  </script>
+</body>
+</html>
