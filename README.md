@@ -26,10 +26,10 @@ El sistema está diseñado con una arquitectura escalable, con la visión a futu
 
 ## 🛠️ Tecnologías Utilizadas
 *(Nota: Actualiza esta sección con las herramientas específicas que estés utilizando)*
-* **Frontend:** HTML5, CSS3, JavaScript / [React, Vue, Angular, etc.]
-* **Backend:** [Node.js, Python, Java, etc.]
-* **Base de Datos:** [MySQL, PostgreSQL, MongoDB, etc.]
-* **Diseño/UI:** [Tailwind CSS, Bootstrap, Figma, etc.]
+* **Frontend:** HTML5, CSS3, JavaScript / [React, Vue, Angular.]
+* **Backend:** [Node.js, Python, Java.]
+* **Base de Datos:** [MySQL, PostgreSQL, MongoDB.]
+* **Diseño/UI:** [Tailwind CSS, Bootstrap, Figma.]
 
 ## ⚙️ Instalación y Configuración Local
 
