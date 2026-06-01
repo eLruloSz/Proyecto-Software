@@ -1,30 +1,44 @@
-import requests
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from supabase import create_client, Client
+
+# 1. Cargar las variables del archivo .env
+load_dotenv()
 
 app = FastAPI()
 
+# Configurar CORS (Para que tu HTML local pueda hablar con el backend)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["*"], # Cambia esto por "http://127.0.0.1:5500" en el futuro
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Tus datos de Supabase
-SUPABASE_URL = "https://wzpshqrhbevhkcrxyhzw.supabase.co" 
-SUPABASE_KEY = "sb_publishable_ye9WOs4iwEs-kC9gsrWJOg_Rc4UkWe9"
+# 2. Leer las variables de entorno de forma segura
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+# Validación de seguridad: FastAPI no arrancará si faltan las claves
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise ValueError("Faltan las variables de entorno SUPABASE_URL o SUPABASE_KEY en el archivo .env")
+
+# 3. Inicializar el cliente de Supabase
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# --- ENDPOINTS ---
 
 @app.get("/api/ramos")
 def obtener_ramos():
-    # URL limpia: Trae TODOS los registros de la tabla Ramos, abiertos y cerrados
-    endpoint = f"{SUPABASE_URL}/rest/v1/Ramos"
-    
-    headers = {
-        "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}"
-    }
-    
-    respuesta = requests.get(endpoint, headers=headers)
-    return respuesta.json()
+    """
+    Trae todos los ramos de la base de datos de Supabase.
+    """
+    response = supabase.table("ramos").select("*").execute()
+    return response.data
+
+@app.get("/")
+def root():
+    return {"message": "API del Sistema de Ayudantías UCN funcionando correctamente"}
