@@ -2,23 +2,48 @@
 let appliedCourses = [
   { code: 'NRC:12900', status: 'revision' } // Ejemplo de postulación previa
 ];
-
-    /* ========================================
-       LANDING PAGE (Lógica Original)
+       /* ========================================
+       LANDING PAGE (Ahora conectada al Backend)
     ======================================== */
+    
+    // Variable global para guardar los ramos que vienen de la BD
+    let coursesData = []; 
+
+    async function fetchAndRenderCourses() {
+      const grid = document.getElementById('coursesGrid');
+      grid.innerHTML = '<p style="color:var(--muted); text-align:center; grid-column: 1 / -1;">Cargando asignaturas...</p>';
+
+      try {
+        // Hacer la petición a tu backend de FastAPI
+        const response = await fetch('http://127.0.0.1:8000/api/ramos');
+        if (!response.ok) throw new Error("Error al conectar con el servidor");
+        
+        coursesData = await response.json();
+        renderCourses(); // Pintar los datos en el HTML
+      } catch (error) {
+        console.error(error);
+        grid.innerHTML = '<p style="color:var(--danger); text-align:center; grid-column: 1 / -1;">Error al cargar las asignaturas desde el servidor.</p>';
+      }
+    }
+
     function renderCourses() {
       const grid = document.getElementById('coursesGrid');
+      if (coursesData.length === 0) {
+        grid.innerHTML = '<p style="color:var(--muted); text-align:center; grid-column: 1 / -1;">No hay asignaturas disponibles en este momento.</p>';
+        return;
+      }
+
       grid.innerHTML = coursesData.map(c => `
-        <div class="course-card" onclick="handleCourseClick('${c.code}', ${c.open})">
+        <div class="course-card" onclick="handleCourseClick('${c.code_nrc_nrc}', ${c.esta_abierto})">
           <div class="course-header">
-            <span class="course-code">${c.code}</span>
-            ${!c.open ? '<span style="font-size:0.8rem;color:var(--danger);font-weight:600;">Cerrada</span>' : `<span class="course-slots"><i class="fas fa-user-friends" style="margin-right:4px;"></i>${c.slots} cupos</span>`}
+            <span class="course-code">${c.code_nrc_nrc}</span>
+            ${!c.esta_abierto ? '<span style="font-size:0.8rem;color:var(--danger);font-weight:600;">Cerrada</span>' : `<span class="course-slots"><i class="fas fa-user-friends" style="margin-right:4px;"></i>${c.slots} cupos</span>`}
           </div>
-          <h3>${c.name}</h3>
+          <h3>${c.nombre_ramo}</h3>
           <div class="course-prof"><i class="fas fa-chalkboard-teacher"></i>${c.prof}</div>
           <div class="course-footer">
-            <span class="course-dept">${c.dept}</span>
-            <span class="course-applicants"><i class="fas fa-users"></i> ${c.applicants} postulantes</span>
+            <span class="course-dept">${c.deptartamento}</span>
+            <span class="course-applicants"><i class="fas fa-users"></i> ${c.cupos} postulantes</span>
           </div>
         </div>
       `).join('');
@@ -28,7 +53,9 @@ let appliedCourses = [
       if (!open) showToast('Esta asignatura no acepta postulaciones.', 'error');
       else { showToast(`Debes iniciar sesión para postular a ${code}.`, 'info'); setTimeout(() => openModal('login'), 1200); }
     }
-    renderCourses();
+
+    // Ejecutar la función al cargar la página
+    fetchAndRenderCourses();
 
     /* ========================================
        MODALES LOGIN (Google Workspace Mock)
@@ -190,20 +217,20 @@ let appliedCourses = [
     function renderDashboardCourses() {
       const grid = document.getElementById('dashCoursesGrid');
       grid.innerHTML = coursesData.filter(c => {
-        const studentGrade = studentData.notas[c.code];
+        const studentGrade = studentData.notas[c.code_nrc];
         return studentGrade !== undefined && studentGrade >= 4.0 && c.open;
       }).map(c => {
-        const isApplied = appliedCourses.some(app => app.code === c.code);
+        const isApplied = appliedCourses.some(app => app.code === c.code_nrc);
         return `
           <div class="dash-course-card">
             <div class="card-top">
-              <span class="course-code">${c.code}</span>
+              <span class="course-code">${c.code_nrc}</span>
               <span style="font-size:0.8rem; color:var(--muted);">${c.slots} cupos</span>
             </div>
             <h3>${c.name}</h3>
             <div class="meta"><i class="fas fa-chalkboard-teacher"></i> ${c.prof}</div>
-            <div class="meta"><i class="fas fa-star" style="color:var(--warning);"></i> Mi nota: <strong style="color:var(--success)">${studentData.notas[c.code]}</strong></div>
-            <button class="btn-postular ${isApplied ? 'applied' : ''}" onclick="${isApplied ? '' : `applyToCourse('${c.code}', '${c.name}')`}">
+            <div class="meta"><i class="fas fa-star" style="color:var(--warning);"></i> Mi nota: <strong style="color:var(--success)">${studentData.notas[c.code_nrc]}</strong></div>
+            <button class="btn-postular ${isApplied ? 'applied' : ''}" onclick="${isApplied ? '' : `applyToCourse('${c.code_nrc}', '${c.name}')`}">
               ${isApplied ? '<i class="fas fa-check"></i> Ya postulé' : '<i class="fas fa-paper-plane"></i> Postular'}
             </button>
           </div>`;
@@ -237,7 +264,7 @@ let appliedCourses = [
     }
 
     tbody.innerHTML = appliedCourses.map(app => {
-        const course = coursesData.find(c => c.code === app.code);
+        const course = coursesData.find(c => c.code_nrc === app.code);
         const statusConfig = {
           'revision': { text: 'En revisión', class: 'revision', icon: 'fa-clock' },
           'aceptado': { text: 'Aprobado', class: 'aceptado', icon: 'fa-check-circle' },
