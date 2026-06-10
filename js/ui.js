@@ -27,27 +27,27 @@ let appliedCourses = [
     }
 
     function renderCourses() {
-      const grid = document.getElementById('coursesGrid');
-      if (coursesData.length === 0) {
-        grid.innerHTML = '<p style="color:var(--muted); text-align:center; grid-column: 1 / -1;">No hay asignaturas disponibles en este momento.</p>';
-        return;
-      }
+  const grid = document.getElementById('coursesGrid');
+  if (coursesData.length === 0) {
+    grid.innerHTML = '<p style="color:var(--muted); text-align:center; grid-column: 1 / -1;">No hay asignaturas disponibles en este momento.</p>';
+    return;
+  }
 
-      grid.innerHTML = coursesData.map(c => `
-        <div class="course-card" onclick="handleCourseClick('${c.code_nrc_nrc}', ${c.esta_abierto})">
-          <div class="course-header">
-            <span class="course-code">${c.code_nrc_nrc}</span>
-            ${!c.esta_abierto ? '<span style="font-size:0.8rem;color:var(--danger);font-weight:600;">Cerrada</span>' : `<span class="course-slots"><i class="fas fa-user-friends" style="margin-right:4px;"></i>${c.slots} cupos</span>`}
-          </div>
-          <h3>${c.nombre_ramo}</h3>
-          <div class="course-prof"><i class="fas fa-chalkboard-teacher"></i>${c.prof}</div>
-          <div class="course-footer">
-            <span class="course-dept">${c.deptartamento}</span>
-            <span class="course-applicants"><i class="fas fa-users"></i> ${c.cupos} postulantes</span>
-          </div>
-        </div>
-      `).join('');
-    }
+  grid.innerHTML = coursesData.map(c => `
+    <div class="course-card" onclick="handleCourseClick('${c.codigo_nrc}', ${c.esta_abierto})">
+      <div class="course-header">
+        <span class="course-code">${c.codigo_nrc}</span>
+        ${!c.esta_abierto ? '<span style="font-size:0.8rem;color:var(--danger);font-weight:600;">Cerrada</span>' : `<span class="course-slots"><i class="fas fa-user-friends" style="margin-right:4px;"></i>${c.cupos} cupos</span>`}
+      </div>
+      <h3>${c.nombre_ramo}</h3>
+      <div class="course-prof"><i class="fas fa-chalkboard-teacher"></i>${c.id_profesor_encargado || "Por asignar"}</div>
+      <div class="course-footer">
+        <span class="course-dept">${c.departamento}</span>
+        <span class="course-applicants"><i class="fas fa-users"></i> 0 postulantes</span>
+      </div>
+    </div>
+  `).join('');
+}
 
     function handleCourseClick(code, open) {
       if (!open) showToast('Esta asignatura no acepta postulaciones.', 'error');
@@ -214,35 +214,60 @@ let appliedCourses = [
       tabElement.classList.add('active');
     }
 
-    function renderDashboardCourses() {
-      const grid = document.getElementById('dashCoursesGrid');
-      grid.innerHTML = coursesData.filter(c => {
-        const studentGrade = studentData.notas[c.code_nrc];
-        return studentGrade !== undefined && studentGrade >= 4.0 && c.open;
-      }).map(c => {
-        const isApplied = appliedCourses.some(app => app.code === c.code_nrc);
-        return `
-          <div class="dash-course-card">
-            <div class="card-top">
-              <span class="course-code">${c.code_nrc}</span>
-              <span style="font-size:0.8rem; color:var(--muted);">${c.slots} cupos</span>
-            </div>
-            <h3>${c.name}</h3>
-            <div class="meta"><i class="fas fa-chalkboard-teacher"></i> ${c.prof}</div>
-            <div class="meta"><i class="fas fa-star" style="color:var(--warning);"></i> Mi nota: <strong style="color:var(--success)">${studentData.notas[c.code_nrc]}</strong></div>
-            <button class="btn-postular ${isApplied ? 'applied' : ''}" onclick="${isApplied ? '' : `applyToCourse('${c.code_nrc}', '${c.name}')`}">
-              ${isApplied ? '<i class="fas fa-check"></i> Ya postulé' : '<i class="fas fa-paper-plane"></i> Postular'}
-            </button>
-          </div>`;
-      }).join('');
+   function renderDashboardCourses() {
+  const grid = document.getElementById('dashCoursesGrid');
+  grid.innerHTML = coursesData.filter(c => {
+    // 1. Filtramos por la nota del estudiante usando "codigo_nrc"
+    const studentGrade = studentData.notas[c.codigo_nrc];
+    return studentGrade !== undefined && studentGrade >= 4.0 && c.esta_abierto;
+  }).map(c => {
+    // 2. Verificamos si ya postuló
+    const isApplied = appliedCourses.some(app => app.code === c.codigo_nrc);
+    
+    // 3. Pintamos la tarjeta con los datos reales
+    return `
+      <div class="dash-course-card">
+        <div class="card-top">
+          <span class="course-code">${c.codigo_nrc}</span>
+          <span style="font-size:0.8rem; color:var(--muted);">${c.cupos} cupos</span>
+        </div>
+        <h3>${c.nombre_ramo}</h3>
+        <div class="meta"><i class="fas fa-chalkboard-teacher"></i> ${c.id_profesor_encargado || "Por asignar"}</div>
+        <div class="meta"><i class="fas fa-star" style="color:var(--warning);"></i> Mi nota: <strong style="color:var(--success)">${studentData.notas[c.codigo_nrc]}</strong></div>
+        <button class="btn-postular ${isApplied ? 'applied' : ''}" onclick="${isApplied ? '' : `applyToCourse('${c.codigo_nrc}', '${c.nombre_ramo}')`}">
+          ${isApplied ? '<i class="fas fa-check"></i> Ya postulé' : '<i class="fas fa-paper-plane"></i> Postular'}
+        </button>
+      </div>`;
+  }).join('');
+}
+   async function applyToCourse(code, name) {
+  try {
+    // 1. Enviar la petición al backend con los datos del estudiante
+    const response = await fetch('http://127.0.0.1:8000/api/postular', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nrc_ramo: code,
+        rut_estudiante: studentData.rut,
+        nombre_estudiante: studentData.name
+      })
+    });
+
+    if (!response.ok) {
+        throw new Error("Error en el servidor al enviar la postulación");
     }
 
-    function applyToCourse(code, name) {
-      appliedCourses.push({ code, status: 'revision' });
-      renderDashboardCourses(); 
-      renderMyApplications(); 
-      showToast(`Postulación a ${name} enviada exitosamente.`, 'success');
-    }
+    // 2. Si todo sale bien en la base de datos, actualizamos lo visual
+    appliedCourses.push({ code, status: 'revision' });
+    renderDashboardCourses(); 
+    renderMyApplications(); 
+    showToast(`Postulación a ${name} enviada exitosamente.`, 'success');
+
+  } catch (error) {
+    console.error(error);
+    showToast('Hubo un problema al enviar tu postulación.', 'error');
+  }
+}
     function withdrawApplication(code, name) {
       // 1. Eliminar del array de postulaciones
       appliedCourses = appliedCourses.filter(app => app.code !== code);
@@ -256,42 +281,40 @@ let appliedCourses = [
       showToast(`Has retirado tu postulación a ${name} correctamente.`, 'info');
     }
 
-    function renderMyApplications() {
-    const tbody = document.getElementById('tablePostulaciones');
-    if (appliedCourses.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:2rem;">No tienes postulaciones activas.</td></tr>`;
-        return;
-    }
+   function renderMyApplications() {
+  const tbody = document.getElementById('tablePostulaciones');
+  if (appliedCourses.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:2rem;">No tienes postulaciones activas.</td></tr>`;
+      return;
+  }
 
-    tbody.innerHTML = appliedCourses.map(app => {
-        const course = coursesData.find(c => c.code_nrc === app.code);
-        const statusConfig = {
-          'revision': { text: 'En revisión', class: 'revision', icon: 'fa-clock' },
-          'aceptado': { text: 'Aprobado', class: 'aceptado', icon: 'fa-check-circle' },
-          'rechazado': { text: 'Rechazado', class: 'rechazado', icon: 'fa-times-circle' }
-        };
-        const s = statusConfig[app.status];
-        
-        // Solo mostramos el botón de retirar si está "En revisión". 
-        // Si ya fue aceptado o rechazado, el proceso terminó.
-        const canWithdraw = app.status === 'revision';
+  tbody.innerHTML = appliedCourses.map(app => {
+      // Usamos codigo_nrc para encontrar el ramo
+      const course = coursesData.find(c => c.codigo_nrc === app.code);
+      const statusConfig = {
+        'revision': { text: 'En revisión', class: 'revision', icon: 'fa-clock' },
+        'aceptado': { text: 'Aprobado', class: 'aceptado', icon: 'fa-check-circle' },
+        'rechazado': { text: 'Rechazado', class: 'rechazado', icon: 'fa-times-circle' }
+      };
+      const s = statusConfig[app.status];
+      const canWithdraw = app.status === 'revision';
 
-        return `
-          <tr>
-            <td style="font-weight:700; color:var(--accent);">${app.code}</td>
-            <td>${course ? course.name : 'Desconocida'}</td>
-            <td>${course ? course.prof : 'Desconocido'}</td>
-            <td><span class="status-badge ${s.class}"><i class="fas ${s.icon}"></i> ${s.text}</span></td>
-            <td>
-              ${canWithdraw ? `
-                <button class="btn btn-ghost" style="padding: 6px 12px; font-size: 0.8rem; color: var(--danger); border-color: var(--danger);" onclick="withdrawApplication('${app.code}', '${course ? course.name : ''}')">
-                  <i class="fas fa-times"></i> Retirar
-                </button>
-              ` : '<span style="color:var(--muted); font-size:0.8rem;">--</span>'}
-            </td>
-          </tr>`;
-      }).join('');
-    }
+      return `
+        <tr>
+          <td style="font-weight:700; color:var(--accent);">${app.code}</td>
+          <td>${course ? course.nombre_ramo : 'Desconocida'}</td>
+          <td>${course ? (course.profesor || 'Por asignar') : 'Desconocido'}</td>
+          <td><span class="status-badge ${s.class}"><i class="fas ${s.icon}"></i> ${s.text}</span></td>
+          <td>
+            ${canWithdraw ? `
+              <button class="btn btn-ghost" style="padding: 6px 12px; font-size: 0.8rem; color: var(--danger); border-color: var(--danger);" onclick="withdrawApplication('${app.code}', '${course ? course.nombre_ramo : ''}')">
+                <i class="fas fa-times"></i> Retirar
+              </button>
+            ` : '<span style="color:var(--muted); font-size:0.8rem;">--</span>'}
+          </td>
+        </tr>`;
+    }).join('');
+}
 
     /* ========================================
        UTILIDADES (Toasts, Nav, Partículas)
