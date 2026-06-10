@@ -26,7 +26,7 @@ let appliedCourses = [
       }
     }
 
-    function renderCourses() {
+  function renderCourses() {
   const grid = document.getElementById('coursesGrid');
   if (coursesData.length === 0) {
     grid.innerHTML = '<p style="color:var(--muted); text-align:center; grid-column: 1 / -1;">No hay asignaturas disponibles en este momento.</p>';
@@ -43,7 +43,7 @@ let appliedCourses = [
       <div class="course-prof"><i class="fas fa-chalkboard-teacher"></i>${c.id_profesor_encargado || "Por asignar"}</div>
       <div class="course-footer">
         <span class="course-dept">${c.departamento}</span>
-        <span class="course-applicants"><i class="fas fa-users"></i> 0 postulantes</span>
+        <span class="course-applicants"><i class="fas fa-users"></i> ${c.postulantes || 0} postulantes</span>
       </div>
     </div>
   `).join('');
@@ -240,9 +240,8 @@ let appliedCourses = [
       </div>`;
   }).join('');
 }
-   async function applyToCourse(code, name) {
+  async function applyToCourse(code, name) {
   try {
-    // 1. Enviar la petición al backend con los datos del estudiante
     const response = await fetch('http://127.0.0.1:8000/api/postular', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -257,10 +256,18 @@ let appliedCourses = [
         throw new Error("Error en el servidor al enviar la postulación");
     }
 
-    // 2. Si todo sale bien en la base de datos, actualizamos lo visual
+    // --- MAGIA AQUÍ: Volvemos a descargar los ramos para obtener el nuevo contador ---
+    const ramosResponse = await fetch('http://127.0.0.1:8000/api/ramos');
+    coursesData = await ramosResponse.json();
+    // --------------------------------------------------------------------------------
+
     appliedCourses.push({ code, status: 'revision' });
+    
+    // Al redibujar las tarjetas, ya usarán el nuevo número de "coursesData"
     renderDashboardCourses(); 
-    renderMyApplications(); 
+    renderMyApplications();
+    renderCourses(); // También actualizamos la página de inicio por si el usuario vuelve atrás
+    
     showToast(`Postulación a ${name} enviada exitosamente.`, 'success');
 
   } catch (error) {
