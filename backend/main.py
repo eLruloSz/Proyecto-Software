@@ -28,3 +28,28 @@ def obtener_ramos():
 @app.get("/")
 def root():
     return {"message": "API del Sistema de Ayudantías UCN funcionando correctamente"}
+
+
+
+#lo que meti pa que funcione el boton de postulacion 
+from pydantic import BaseModel
+
+
+class Postulacion(BaseModel):
+    nrc_ramo: str
+    rut_estudiante: str
+    nombre_estudiante: str
+
+@app.post("/api/postular")
+def crear_postulacion(postulacion: Postulacion):
+    try:
+        
+        response = supabase.table("postulaciones").insert({
+            "nrc_ramo": postulacion.nrc_ramo,
+            "rut_estudiante": postulacion.rut_estudiante,
+            "nombre_estudiante": postulacion.nombre_estudiante,
+            "estado": "revision"
+        }).execute()
+        return {"mensaje": "Postulación guardada exitosamente", "data": response.data}
+    except Exception as e:
+        return {"error": str(e)}
