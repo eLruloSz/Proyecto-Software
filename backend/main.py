@@ -1,6 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-
+from pydantic import BaseModel
 # IMPORTANTE: Aquí traemos la conexión a la base de datos que acabas de crear
 from database import supabase 
 
@@ -43,13 +43,28 @@ class Postulacion(BaseModel):
 @app.post("/api/postular")
 def crear_postulacion(postulacion: Postulacion):
     try:
-        
+        # 1. Insertamos la postulación
         response = supabase.table("postulaciones").insert({
             "nrc_ramo": postulacion.nrc_ramo,
             "rut_estudiante": postulacion.rut_estudiante,
             "nombre_estudiante": postulacion.nombre_estudiante,
             "estado": "revision"
         }).execute()
-        return {"mensaje": "Postulación guardada exitosamente", "data": response.data}
+        
+        # 2. Buscamos el ramo
+        ramo = supabase.table("ramos").select("postulantes").eq("codigo_nrc", postulacion.nrc_ramo).execute()
+        
+        # 3. Sumamos 1
+        if ramo.data:
+            postulantes_actuales = ramo.data[0].get("postulantes", 0)
+            nuevo_valor = postulantes_actuales + 1
+            
+            
+            supabase.table("ramos").update({"postulantes": nuevo_valor}).eq("codigo_nrc", postulacion.nrc_ramo).execute()
+
+        return {"mensaje": "Postulación guardada y contador actualizado"}
+    
     except Exception as e:
-        return {"error": str(e)}
+        # Ahora si falla, lo imprimirá en rojo en tu terminal de VS Code
+        print(f" ERROR EN EL BACKEND: {str(e)}") 
+        raise HTTPException(status_code=400, detail=str(e))
