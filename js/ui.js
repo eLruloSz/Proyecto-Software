@@ -148,32 +148,44 @@ let appliedCourses = [
     }
 
     function handleMockLogin() {
-      const email = document.getElementById('mockEmail').value.trim();
-      const pass = document.getElementById('mockPass').value.trim();
-      const errorDiv = document.getElementById('mockEmailError');
+  const email = document.getElementById('mockEmail').value.trim();
+  const pass = document.getElementById('mockPass').value.trim();
+  const errorDiv = document.getElementById('mockEmailError');
 
-      if (!email) { showToast('Debes ingresar tu correo.', 'error'); return; }
-      if (errorDiv.style.display === 'block') { showToast('El dominio del correo no corresponde al rol seleccionado.', 'error'); return; }
-      if (!pass) { showToast('Debes ingresar tu contraseña.', 'error'); return; }
-      if (pass.length < 4) { showToast('Contraseña incorrecta.', 'error'); return; }
-      
-      showToast(`Bienvenido/a, ${extractedUserName}. Redirigiendo...`, 'success'); 
-      closeGoogleMock();
-      
-      setTimeout(() => {
-        if(loginAttemptRole === 'estudiante') {
-          studentData.name = extractedUserName;
-          studentData.email = email;
-          enterStudentPage();
-        } // NUEVA LÓGICA DE REDIRECCIÓN:
-        else if (loginAttemptRole === 'docente') {
-          // Redirigir a la vista del profesor
-          window.location.href = 'dashboard-docente.html';
-        } else {
-          alert(`Redirección simulada para: ${extractedUserName} (${loginAttemptRole})`);
-        }
-      }, 1000);
+  // Mapeo de dominios para validación obligatoria
+  const domainMap = { estudiante: '@alumnos.ucn.cl', docente: '@ce.ucn.cl', admin: '@ucn.cl' };
+  const requiredDomain = domainMap[loginAttemptRole];
+
+  if (!email) { showToast('Debes ingresar tu correo.', 'error'); return; }
+  
+  // VALIDACIÓN ESTRICTA: Obliga a que termine con el dominio seleccionado (ej: @ce.ucn.cl)
+  if (!email.endsWith(requiredDomain)) { 
+    showToast(`Error: El correo debe terminar sí o sí en ${requiredDomain}`, 'error'); 
+    return; 
+  }
+  
+  if (!pass) { showToast('Debes ingresar tu contraseña.', 'error'); return; }
+  if (pass.length < 4) { showToast('Contraseña incorrecta.', 'error'); return; }
+  
+  showToast(`Bienvenido/a, ${extractedUserName}. Redirigiendo...`, 'success'); 
+  closeGoogleMock();
+  
+  // SOLUCIÓN AL NOMBRE: Guardamos los datos reales de la sesión en el navegador
+  localStorage.setItem('docenteNombre', extractedUserName);
+  localStorage.setItem('userRole', loginAttemptRole);
+  
+  setTimeout(() => {
+    if(loginAttemptRole === 'estudiante') {
+      studentData.name = extractedUserName;
+      studentData.email = email;
+      enterStudentPage();
+    } 
+    else if (loginAttemptRole === 'docente' || loginAttemptRole === 'admin') {
+      // Redirigir a la vista del panel de gestión
+      window.location.href = 'dashboard-docente.html';
     }
+  }, 1000);
+}
     /* ========================================
        LÓGICA APP PÁGINA ESTUDIANTE
     ======================================== */
