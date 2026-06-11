@@ -68,3 +68,46 @@ def crear_postulacion(postulacion: Postulacion):
         # Ahora si falla, lo imprimirá en rojo en tu terminal de VS Code
         print(f" ERROR EN EL BACKEND: {str(e)}") 
         raise HTTPException(status_code=400, detail=str(e))
+    
+
+    # --- NUEVOS ENDPOINTS PARA EL PANEL DOCENTE/ADMIN ---
+
+# --- NUEVOS ENDPOINTS PARA EL PANEL DOCENTE Y ADMINISTRADOR ---
+
+@app.get("/api/postulaciones")
+def obtener_postulaciones():
+    """Trae todas las postulaciones del sistema desde Supabase."""
+    try:
+        response = supabase.table("postulaciones").select("*").execute()
+        return response.data
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+class ActualizarEstado(BaseModel):
+    nrc_ramo: str
+    rut_estudiante: str
+    nuevo_estado: str  # Puede recibir 'aceptado' o 'rechazado'
+
+@app.put("/api/postulaciones/estado")
+def actualizar_estado(datos: ActualizarEstado):
+    """Actualiza el estado de una postulación y libera el cupo si es rechazado."""
+    try:
+        # 1. Actualizamos el estado a 'aceptado' o 'rechazado'
+        response = supabase.table("postulaciones")\
+            .update({"estado": datos.nuevo_estado})\
+            .eq("nrc_ramo", datos.nrc_ramo)\
+            .eq("rut_estudiante", datos.rut_estudiante)\
+            .execute()
+        
+        # 2. Si el estudiante fue rechazado, restamos 1 al contador del ramo
+        if datos.nuevo_estado == 'rechazado':
+            ramo = supabase.table("ramos").select("postulantes").eq("codigo_nrc", datos.nrc_ramo).execute()
+            if ramo.data:
+                postulantes_actuales = ramo.data[0].get("postulantes", 0)
+                if postulantes_actuales > 0:
+                    supabase.table("ramos").update({"postulantes": postulantes_actuales - 1}).eq("codigo_nrc", datos.nrc_ramo).execute()
+
+        return {"mensaje": "Estado actualizado correctamente"}
+    except Exception as e:
+        print(f" ERROR AL CAMBIAR ESTADO: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
