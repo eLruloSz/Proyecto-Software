@@ -1,4 +1,4 @@
- // Array para guardar a qué asignaturas postuló en esta sesión
+// Array para guardar a qué asignaturas postuló en esta sesión
 let appliedCourses = [
   { code: 'NRC:12900', status: 'revision' } // Ejemplo de postulación previa
 ];
@@ -181,8 +181,7 @@ let appliedCourses = [
       enterStudentPage();
     } 
     else if (loginAttemptRole === 'docente' || loginAttemptRole === 'admin') {
-      // Redirigir a la vista del panel de gestión
-      window.location.href = 'dashboard-docente.html';
+      enterDocentePage(loginAttemptRole, email);
     }
   }, 1000);
 }
@@ -217,6 +216,207 @@ let appliedCourses = [
       document.querySelector('#particleCanvas').style.display = 'block';
       showToast('Sesión cerrada correctamente.', 'info');
     }
+
+    /* ========================================
+       LÓGICA APP PÁGINA DOCENTE / ADMIN
+    ======================================== */
+    let pendingAction = null;
+
+    function enterDocentePage(role, email) {
+      // Ocultar landing y fondos
+      document.querySelector('.content-wrapper').style.display = 'none';
+      document.querySelector('.bg-atmosphere').style.display = 'none';
+      document.querySelector('.bg-grid').style.display = 'none';
+      document.querySelector('#particleCanvas').style.display = 'none';
+
+      // Mostrar panel docente
+      document.getElementById('app-docente').style.display = 'block';
+
+      // Inyectar datos en el header
+      const initials = extractedUserName.split(' ').map(n => n[0]).join('').toUpperCase();
+      document.getElementById('docenteHeaderAvatar').textContent = initials;
+      document.getElementById('docenteHeaderName').textContent = extractedUserName;
+
+      const displayRole = role === 'admin' ? 'Administrador' : 'Profesor';
+      document.getElementById('docenteRoleBadge').textContent = `| Panel ${displayRole}`;
+      document.getElementById('docenteWelcomeText').innerHTML =
+        `Bienvenido, ${displayRole} <span class="gradient-text">${extractedUserName}</span>`;
+
+      // Registrar listener del modal confirmación (solo una vez)
+      const confirmBtn = document.getElementById('confirmActionBtn');
+      confirmBtn.replaceWith(confirmBtn.cloneNode(true)); // limpia listeners previos
+      document.getElementById('confirmActionBtn').addEventListener('click', async () => {
+        if (!pendingAction) return;
+        const btn = document.getElementById('confirmActionBtn');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+        btn.disabled = true;
+        await pendingAction();
+        btn.innerHTML = 'Confirmar';
+        btn.disabled = false;
+        cerrarModalConfirmacion();
+      });
+
+      cargarPanelDocente();
+    }
+
+    function logoutDocente() {
+      document.getElementById('app-docente').style.display = 'none';
+      document.querySelector('.content-wrapper').style.display = 'block';
+      document.querySelector('.bg-atmosphere').style.display = 'block';
+      document.querySelector('.bg-grid').style.display = 'block';
+      document.querySelector('#particleCanvas').style.display = 'block';
+      showToast('Sesión cerrada correctamente.', 'info');
+    }
+
+    async function cargarPanelDocente() {
+      const container = document.getElementById('docenteDashboardContent');
+      container.innerHTML = '<p style="color:var(--muted); text-align:center; padding: 3rem;">Cargando asignaturas y postulaciones...</p>';
+
+      try {
+        const [resRamos, resPostulaciones] = await Promise.all([
+          fetch('http://127.0.0.1:8000/api/ramos'),
+          fetch('http://127.0.0.1:8000/api/postulaciones')
+        ]);
+
+        if (!resRamos.ok || !resPostulaciones.ok) throw new Error('Error en los datos del servidor');
+
+        const ramosData = await resRamos.json();
+        const postulacionesData = await resPostulaciones.json();
+
+        renderizarPanelDocente(ramosData, postulacionesData);
+      } catch (error) {
+        console.error(error);
+        container.innerHTML = '<p style="color:var(--danger); text-align:center; padding: 3rem;">Error al conectar con el backend. Asegúrate de que FastAPI está corriendo.</p>';
+      }
+    }
+
+    function renderizarPanelDocente(ramos, postulaciones) {
+      const container = document.getElementById('docenteDashboardContent');
+      let html = '';
+
+      ramos.forEach(curso => {
+        const postulantesCurso = postulaciones.filter(
+          p => p.nrc_ramo === curso.codigo_nrc && p.estado !== 'rechazado'
+        );
+
+        html += `
+          <div class="panel-card">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+              <div>
+                <span class="course-code">${curso.codigo_nrc}</span>
+                <h3 style="margin-top:8px; font-size:1.4rem;">${curso.nombre_ramo}</h3>
+                <div style="font-size:0.85rem; color:var(--muted); margin-top:4px;">${curso.departamento}</div>
+              </div>
+              <div style="text-align:right; color:var(--muted); font-size:0.9rem;">
+                <i class="fas fa-users"></i> ${postulantesCurso.length} / ${curso.cupos} Solicitudes Activas
+              </div>
+            </div>
+            <div style="background:var(--bg-secondary); border-radius:var(--radius-sm); border:1px solid var(--border);">
+              ${postulantesCurso.length > 0
+                ? postulantesCurso.map(p => renderizarFilaPostulante(p)).join('')
+                : '<div style="padding:1.5rem; text-align:center; color:var(--muted);">No hay postulantes activos para esta asignatura.</div>'
+              }
+            </div>
+          </div>`;
+      });
+
+      container.innerHTML = html || '<p style="color:var(--muted); text-align:center; padding:2rem;">No hay asignaturas registradas.</p>';
+
+      // Delegación de eventos con data-attributes
+      container.querySelectorAll('[data-action="cambiar-estado"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const { nrc, rut, estado, nombre } = btn.dataset;
+          abrirModalConfirmacion(nrc, rut, estado, nombre);
+        });
+      });
+    }
+
+    function renderizarFilaPostulante(p) {
+      const esAceptado = p.estado === 'aceptado';
+      const claseBadge = esAceptado ? 'status-aprobado' : 'status-pendiente';
+      const textoEstado = esAceptado ? 'Aprobado' : 'En revisión';
+
+      const botonesAccion = p.estado === 'revision' ? `
+        <button class="btn btn-primary"
+          style="padding:6px 12px; font-size:0.8rem; background:var(--success);"
+          data-action="cambiar-estado"
+          data-nrc="${p.nrc_ramo}"
+          data-rut="${p.rut_estudiante}"
+          data-estado="aceptado"
+          data-nombre="${p.nombre_estudiante}">
+          <i class="fas fa-check"></i> Aprobar
+        </button>
+        <button class="btn btn-ghost"
+          style="padding:6px 12px; font-size:0.8rem; color:var(--danger); border-color:var(--danger);"
+          data-action="cambiar-estado"
+          data-nrc="${p.nrc_ramo}"
+          data-rut="${p.rut_estudiante}"
+          data-estado="rechazado"
+          data-nombre="${p.nombre_estudiante}">
+          <i class="fas fa-times"></i> Rechazar
+        </button>` : '';
+
+      return `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:1.2rem; border-bottom:1px solid var(--border);">
+          <div style="display:flex; align-items:center; gap:15px;">
+            <div style="width:45px;height:45px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-deep));color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.2rem;">
+              ${p.nombre_estudiante.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div style="font-weight:700; color:var(--fg); font-size:1.05rem;">${p.nombre_estudiante}</div>
+              <div style="font-size:0.85rem; color:var(--muted);">
+                <i class="fas fa-id-card" style="margin-right:5px;"></i>RUT: ${p.rut_estudiante}
+              </div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end;">
+            <span class="status-badge ${claseBadge}">${textoEstado}</span>
+            ${botonesAccion}
+          </div>
+        </div>`;
+    }
+
+    function abrirModalConfirmacion(nrc, rut, nuevoEstado, nombreEstudiante) {
+      const esAprobacion = nuevoEstado === 'aceptado';
+      const color = esAprobacion ? 'var(--success)' : 'var(--danger)';
+      const accionText = esAprobacion ? 'APROBAR' : 'RECHAZAR';
+
+      document.getElementById('confirmMessage').innerHTML =
+        `¿Estás seguro de que deseas <strong style="color:${color};">${accionText}</strong> a <strong>${nombreEstudiante}</strong>?`;
+
+      const btn = document.getElementById('confirmActionBtn');
+      btn.style.background = color;
+      btn.style.boxShadow = `0 4px 16px ${color}40`;
+
+      pendingAction = () => ejecutarCambioEstado(nrc, rut, nuevoEstado);
+      document.getElementById('confirmModalOverlay').classList.add('active');
+    }
+
+    function cerrarModalConfirmacion() {
+      document.getElementById('confirmModalOverlay').classList.remove('active');
+      pendingAction = null;
+    }
+
+    async function ejecutarCambioEstado(nrc, rut, nuevoEstado) {
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/postulaciones/estado', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nrc_ramo: nrc, rut_estudiante: rut, nuevo_estado: nuevoEstado })
+        });
+        if (!response.ok) throw new Error('Error al modificar el estado en el backend');
+        await cargarPanelDocente();
+        showToast(`Postulación ${nuevoEstado === 'aceptado' ? 'aprobada' : 'rechazada'} correctamente.`, nuevoEstado === 'aceptado' ? 'success' : 'info');
+      } catch (error) {
+        console.error(error);
+        showToast('Ocurrió un error al cambiar el estado de la postulación.', 'error');
+      }
+    }
+
+    // Cerrar modal confirmación al hacer click fuera
+    document.getElementById('confirmModalOverlay').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) cerrarModalConfirmacion();
+    });
 
     function switchView(viewId, tabElement) {
       document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));

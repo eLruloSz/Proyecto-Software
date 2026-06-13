@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-# IMPORTANTE: Aquí traemos la conexión a la base de datos que acabas de crear
 from database import supabase 
 
 app = FastAPI()
@@ -28,12 +27,6 @@ def obtener_ramos():
 @app.get("/")
 def root():
     return {"message": "API del Sistema de Ayudantías UCN funcionando correctamente"}
-
-
-
-#lo que meti pa que funcione el boton de postulacion 
-from pydantic import BaseModel
-
 
 class Postulacion(BaseModel):
     nrc_ramo: str
