@@ -147,7 +147,7 @@ let appliedCourses = [
       }
     }
 
-    function handleMockLogin() {
+ async function handleMockLogin() {
   const email = document.getElementById('mockEmail').value.trim();
   const pass = document.getElementById('mockPass').value.trim();
   const errorDiv = document.getElementById('mockEmailError');
@@ -167,23 +167,73 @@ let appliedCourses = [
   if (!pass) { showToast('Debes ingresar tu contraseña.', 'error'); return; }
   if (pass.length < 4) { showToast('Contraseña incorrecta.', 'error'); return; }
   
-  showToast(`Bienvenido/a, ${extractedUserName}. Redirigiendo...`, 'success'); 
-  closeGoogleMock();
-  
-  // SOLUCIÓN AL NOMBRE: Guardamos los datos reales de la sesión en el navegador
-  localStorage.setItem('docenteNombre', extractedUserName);
-  localStorage.setItem('userRole', loginAttemptRole);
-  
-  setTimeout(() => {
-    if(loginAttemptRole === 'estudiante') {
-      studentData.name = extractedUserName;
-      studentData.email = email;
-      enterStudentPage();
-    } 
-    else if (loginAttemptRole === 'docente' || loginAttemptRole === 'admin') {
-      enterDocentePage(loginAttemptRole, email);
+  // ====================================================================
+  // NUEVA LÓGICA: CONSULTA AL BACKEND (FASTAPI)
+  // ====================================================================
+  try {
+    // Cambiamos el texto del botón temporalmente para que el usuario sepa que está cargando
+    const btn = document.querySelector('#googleMockBody .btn-primary');
+    const textoOriginal = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...';
+    btn.disabled = true;
+
+    const response = await fetch('http://127.0.0.1:8000/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ correo: email, password: pass, rol: loginAttemptRole })
+    });
+
+    // Restauramos el botón
+    btn.innerHTML = textoOriginal;
+    btn.disabled = false;
+
+    // Si es estudiante y recibe un 404, significa que NO está registrado.
+    if (response.status === 404 && loginAttemptRole === 'estudiante') {
+        showToast('No tienes cuenta. Debes registrarte por primera vez.', 'info');
+        
+        // Aquí deberías llamar a una función que cierre este modal y abra el de registro
+        // pasándole el correo y la password que ya escribió para ahorrarle tiempo.
+        // Ejemplo: abrirModalRegistro(email, pass);
+        return; 
     }
-  }, 1000);
+
+    if (!response.ok) {
+        throw new Error("Contraseña incorrecta o error de servidor.");
+    }
+
+    const data = await response.json();
+    
+    // Si la BD nos devuelve el nombre real, lo usamos. Si no, usamos el que extrajimos del correo.
+    const nombreFinal = (data.usuario && data.usuario.nombre) ? data.usuario.nombre : extractedUserName;
+
+    // ====================================================================
+    // CONTINÚA TU LÓGICA ORIGINAL SI TODO SALE BIEN
+    // ====================================================================
+    showToast(`Bienvenido/a, ${nombreFinal}. Redirigiendo...`, 'success'); 
+    closeGoogleMock();
+    
+    // SOLUCIÓN AL NOMBRE: Guardamos los datos reales de la sesión en el navegador
+    localStorage.setItem('docenteNombre', nombreFinal);
+    localStorage.setItem('userRole', loginAttemptRole);
+    
+    setTimeout(() => {
+      if(loginAttemptRole === 'estudiante') {
+        studentData.name = nombreFinal;
+        studentData.email = email;
+        // Si el backend nos mandó el RUT, también lo actualizamos en la variable global
+        if(data.usuario && data.usuario.rut) {
+            studentData.rut = data.usuario.rut;
+        }
+        enterStudentPage();
+      } 
+      else if (loginAttemptRole === 'docente' || loginAttemptRole === 'admin') {
+        enterDocentePage(loginAttemptRole, email);
+      }
+    }, 1000);
+
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
 }
     /* ========================================
        LÓGICA APP PÁGINA ESTUDIANTE
@@ -291,6 +341,8 @@ let appliedCourses = [
     }
 
     function renderizarPanelDocente(ramos, postulaciones) {
+      // Ordenar postulantes por nota (de mayor a menor)
+      postulantesCurso.sort((a, b) => b.nota_obtenida - a.nota_obtenida);
       const container = document.getElementById('docenteDashboardContent');
       let html = '';
 
@@ -362,6 +414,9 @@ let appliedCourses = [
             <div style="width:45px;height:45px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-deep));color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.2rem;">
               ${p.nombre_estudiante.charAt(0).toUpperCase()}
             </div>
+            <div style="font-size:0.95rem; color:var(--warning); font-weight: bold;">
+            <i class="fas fa-star"></i> Nota: ${p.nota_obtenida}
+                </div>
             <div>
               <div style="font-weight:700; color:var(--fg); font-size:1.05rem;">${p.nombre_estudiante}</div>
               <div style="font-size:0.85rem; color:var(--muted);">
