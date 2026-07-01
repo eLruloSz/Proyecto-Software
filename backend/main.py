@@ -32,16 +32,19 @@ class Postulacion(BaseModel):
     nrc_ramo: str
     rut_estudiante: str
     nombre_estudiante: str
+    nota_obtenida: float
 
 @app.post("/api/postular")
 def crear_postulacion(postulacion: Postulacion):
     try:
-        # 1. Insertamos la postulación
+        
         response = supabase.table("postulaciones").insert({
             "nrc_ramo": postulacion.nrc_ramo,
             "rut_estudiante": postulacion.rut_estudiante,
             "nombre_estudiante": postulacion.nombre_estudiante,
-            "estado": "revision"
+           "nota_obtenida": postulacion.nota_obtenida,
+            "estado": "revision",
+            "semestre": "2026-1"
         }).execute()
         
         # 2. Buscamos el ramo
@@ -104,3 +107,42 @@ def actualizar_estado(datos: ActualizarEstado):
     except Exception as e:
         print(f" ERROR AL CAMBIAR ESTADO: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
+    
+
+    # main.py
+class EstudianteRegistro(BaseModel):
+    rut: str
+    nombre: str
+    correo: str
+    password: str # En producción, esto DEBE ir hasheado (ej. usando passlib)
+
+class EstudianteLogin(BaseModel):
+    correo: str
+    password: str
+
+@app.post("/api/login")
+def login(datos: EstudianteLogin):
+    # Consultar a Supabase si existe el usuario
+    response = supabase.table("estudiantes").select("*").eq("correo", datos.correo).execute()
+    
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Usuario no registrado")
+    
+    usuario = response.data[0]
+    if usuario["password"] != datos.password: # Recuerda usar hashes en el futuro
+        raise HTTPException(status_code=401, detail="Contraseña incorrecta")
+        
+    return {"mensaje": "Login exitoso", "usuario": usuario}
+
+@app.post("/api/registro")
+def registro(datos: EstudianteRegistro):
+    try:
+        response = supabase.table("estudiantes").insert({
+            "rut": datos.rut,
+            "nombre": datos.nombre,
+            "correo": datos.correo,
+            "password": datos.password
+        }).execute()
+        return {"mensaje": "Registro exitoso", "usuario": response.data[0]}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="El correo o RUT ya existe")
