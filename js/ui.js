@@ -501,7 +501,7 @@ let appliedCourses = [
         <h3>${c.nombre_ramo}</h3>
         <div class="meta"><i class="fas fa-chalkboard-teacher"></i> ${c.id_profesor_encargado || "Por asignar"}</div>
         <div class="meta"><i class="fas fa-star" style="color:var(--warning);"></i> Mi nota: <strong style="color:var(--success)">${studentData.notas[c.codigo_nrc]}</strong></div>
-        <button class="btn-postular ${isApplied ? 'applied' : ''}" onclick="${isApplied ? '' : `applyToCourse('${c.codigo_nrc}', '${c.nombre_ramo}')`}">
+        <button class="btn-postular ${isApplied ? 'applied' : ''}" onclick="${isApplied ? '' : `abrirModalPostulacion('${c.nombre_ramo}', '${c.codigo_nrc}', ${studentData.notas[c.codigo_nrc]})`}">
           ${isApplied ? '<i class="fas fa-check"></i> Ya postulé' : '<i class="fas fa-paper-plane"></i> Postular'}
         </button>
       </div>`;
@@ -532,37 +532,48 @@ cerrarModalBtn.onclick = () => {
 formPostulacion.addEventListener('submit', async (e) => {
     e.preventDefault(); // Evita que la página se recargue
 
-    // Preparamos el cuerpo de la petición.
-    // AQUÍ ESTÁ CORREGIDO EL BUG: Ahora sí enviamos la nota_obtenida
+    const nrcRamo = document.getElementById('postulacionNrc').value;
+    const nombreRamo = document.getElementById('postulacionAsignatura').value;
+
+    // AQUÍ ESTÁ EL FIX: Enviamos la nota_obtenida y leemos los datos de studentData
     const payload = {
-        nrc_ramo: document.getElementById('postulacionNrc').value,
-        rut_estudiante: "19847406-K", // Reemplazar con la variable de sesión real del usuario logueado
-        nombre_estudiante: "DIEGO SILVA 1", // Reemplazar con la variable real
+        nrc_ramo: nrcRamo,
+        rut_estudiante: studentData.rut,
+        nombre_estudiante: studentData.name,
         nota_obtenida: parseFloat(document.getElementById('postulacionNota').value) 
     };
 
     try {
-        // Hacemos la petición al backend de tu compañero
-        const response = await fetch('http://localhost:8000/api/postular', {
+        const response = await fetch('http://127.0.0.1:8000/api/postular', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
-        if (response.ok) {
-            alert('¡Postulación enviada con éxito!');
-            modalPostulacion.style.display = 'none';
-            formPostulacion.reset(); // Limpiar el formulario
-            // Aquí podrías actualizar la interfaz para mostrar que ya postuló a este ramo
-        } else {
-            const errorData = await response.json();
-            alert(`Error al postular: ${errorData.detail || 'Problema en el servidor'}`);
+        if (!response.ok) {
+            throw new Error("Error en el servidor al enviar la postulación");
         }
+
+        // --- Actualizamos los ramos para obtener el nuevo contador ---
+        const ramosResponse = await fetch('http://127.0.0.1:8000/api/ramos');
+        coursesData = await ramosResponse.json();
+
+        // Agregamos la postulación al historial visual
+        appliedCourses.push({ code: nrcRamo, status: 'revision' });
+        
+        // Refrescamos las tarjetas y tablas
+        renderDashboardCourses(); 
+        renderMyApplications();
+        renderCourses(); 
+        
+        // Cerramos el modal y mostramos tu notificación bonita
+        modalPostulacion.style.display = 'none';
+        formPostulacion.reset();
+        showToast(`Postulación a ${nombreRamo} enviada exitosamente.`, 'success');
+
     } catch (error) {
-        console.error("Error de conexión:", error);
-        alert("No se pudo conectar con el servidor. ¿El backend está corriendo?");
+        console.error(error);
+        showToast('Hubo un problema al enviar tu postulación.', 'error');
     }
 });
 
