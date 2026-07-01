@@ -507,6 +507,68 @@ let appliedCourses = [
       </div>`;
   }).join('');
 }
+
+
+// 1. Referencias al DOM
+const modalPostulacion = document.getElementById('modalPostulacion');
+const formPostulacion = document.getElementById('formPostulacion');
+const cerrarModalBtn = document.getElementById('cerrarModalBtn');
+
+// 2. Función para abrir el modal (llámala cuando renderices los botones de las asignaturas)
+function abrirModalPostulacion(nombreAsignatura, nrc, notaObtenida) {
+    document.getElementById('postulacionAsignatura').value = nombreAsignatura;
+    document.getElementById('postulacionNrc').value = nrc;
+    document.getElementById('postulacionNota').value = notaObtenida;
+    
+    modalPostulacion.style.display = 'flex';
+}
+
+// Cerrar el modal
+cerrarModalBtn.onclick = () => {
+    modalPostulacion.style.display = 'none';
+}
+
+// 3. Capturar el envío del formulario
+formPostulacion.addEventListener('submit', async (e) => {
+    e.preventDefault(); // Evita que la página se recargue
+
+    // Preparamos el cuerpo de la petición.
+    // AQUÍ ESTÁ CORREGIDO EL BUG: Ahora sí enviamos la nota_obtenida
+    const payload = {
+        nrc_ramo: document.getElementById('postulacionNrc').value,
+        rut_estudiante: "19847406-K", // Reemplazar con la variable de sesión real del usuario logueado
+        nombre_estudiante: "DIEGO SILVA 1", // Reemplazar con la variable real
+        nota_obtenida: parseFloat(document.getElementById('postulacionNota').value) 
+    };
+
+    try {
+        // Hacemos la petición al backend de tu compañero
+        const response = await fetch('http://localhost:8000/api/postular', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            alert('¡Postulación enviada con éxito!');
+            modalPostulacion.style.display = 'none';
+            formPostulacion.reset(); // Limpiar el formulario
+            // Aquí podrías actualizar la interfaz para mostrar que ya postuló a este ramo
+        } else {
+            const errorData = await response.json();
+            alert(`Error al postular: ${errorData.detail || 'Problema en el servidor'}`);
+        }
+    } catch (error) {
+        console.error("Error de conexión:", error);
+        alert("No se pudo conectar con el servidor. ¿El backend está corriendo?");
+    }
+});
+
+
+
+
   async function applyToCourse(code, name) {
   try {
     const response = await fetch('http://127.0.0.1:8000/api/postular', {
