@@ -580,41 +580,7 @@ formPostulacion.addEventListener('submit', async (e) => {
 
 
 
-  async function applyToCourse(code, name) {
-  try {
-    const response = await fetch('http://127.0.0.1:8000/api/postular', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        nrc_ramo: code,
-        rut_estudiante: studentData.rut,
-        nombre_estudiante: studentData.name
-      })
-    });
-
-    if (!response.ok) {
-        throw new Error("Error en el servidor al enviar la postulación");
-    }
-
-    // --- MAGIA AQUÍ: Volvemos a descargar los ramos para obtener el nuevo contador ---
-    const ramosResponse = await fetch('http://127.0.0.1:8000/api/ramos');
-    coursesData = await ramosResponse.json();
-    // --------------------------------------------------------------------------------
-
-    appliedCourses.push({ code, status: 'revision' });
-    
-    // Al redibujar las tarjetas, ya usarán el nuevo número de "coursesData"
-    renderDashboardCourses(); 
-    renderMyApplications();
-    renderCourses(); // También actualizamos la página de inicio por si el usuario vuelve atrás
-    
-    showToast(`Postulación a ${name} enviada exitosamente.`, 'success');
-
-  } catch (error) {
-    console.error(error);
-    showToast('Hubo un problema al enviar tu postulación.', 'error');
-  }
-}
+ 
     function withdrawApplication(code, name) {
       // 1. Eliminar del array de postulaciones
       appliedCourses = appliedCourses.filter(app => app.code !== code);

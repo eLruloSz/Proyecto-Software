@@ -331,48 +331,49 @@
     </div>
   </div>
 
-  <!-- TOASTS -->
-  <div class="toast-container" id="toastContainer"></div>
+ <div class="toast-container" id="toastContainer"></div>
   
   <script src="js/dataStudents.js" defer></script>
   <script src="js/ui.js" defer></script>  
   <script src="js/particles.js" defer></script>
 
-
-
-  <!-- Modal de Postulación -->
-<div id="modalPostulacion" class="modal-oculto" style="display: none;">
-  <div class="modal-contenido">
-    <span id="cerrarModalBtn" class="cerrar-btn">&times;</span>
-    <h2>Postular a Ayudantía</h2>
-    
-    <form id="formPostulacion">
-      <!-- Datos de solo lectura (se llenan con JS) -->
-      <div class="form-group">
-        <label>Asignatura:</label>
-        <input type="text" id="postulacionAsignatura" readonly>
+  <div id="modalPostulacion" class="modal-oculto" style="display: none;">
+    <div class="modal-contenido modal">
+      <div class="modal-header">
+        <h3 id="modalTitle">Postular a Ayudantía</h3>
+        <button id="cerrarModalBtn" class="modal-close" aria-label="Cerrar modal">
+          <i class="fas fa-times"></i>
+        </button>
       </div>
       
-      <div class="form-group">
-        <label>NRC:</label>
-        <input type="text" id="postulacionNrc" readonly>
-      </div>
+      <div class="modal-body">
+        <form id="formPostulacion">
+          <div class="form-group" style="text-align: left;">
+            <label>Asignatura:</label>
+            <input type="text" id="postulacionAsignatura" class="form-input" style="background: var(--bg-tertiary); color: var(--muted); cursor: not-allowed;" readonly>
+          </div>
+          
+          <div class="form-group" style="text-align: left;">
+            <label>NRC:</label>
+            <input type="text" id="postulacionNrc" class="form-input" style="background: var(--bg-tertiary); color: var(--muted); cursor: not-allowed;" readonly>
+          </div>
 
-      <div class="form-group">
-        <label>Tu Nota Histórica:</label>
-        <input type="number" id="postulacionNota" step="0.1" readonly>
-      </div>
+          <div class="form-group" style="text-align: left;">
+            <label>Tu Nota Histórica:</label>
+            <input type="number" id="postulacionNota" step="0.1" class="form-input" style="background: var(--bg-tertiary); color: var(--success); font-weight: bold; cursor: not-allowed;" readonly>
+          </div>
 
-      <!-- Datos que ingresa el usuario -->
-      <div class="form-group">
-        <label for="postulacionMotivacion">¿Por qué quieres ser ayudante? (Opcional)</label>
-        <textarea id="postulacionMotivacion" rows="4" placeholder="Escribe tu motivación aquí..."></textarea>
-      </div>
+          <div class="form-group" style="text-align: left; margin-top: 1.5rem;">
+            <label for="postulacionMotivacion">¿Por qué quieres ser ayudante? (Opcional)</label>
+            <textarea id="postulacionMotivacion" class="form-input" rows="3" placeholder="Escribe tu motivación aquí..."></textarea>
+          </div>
 
-      <button type="submit" class="btn-principal">Enviar Postulación</button>
-    </form>
+          <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 1.5rem;">
+            <i class="fas fa-paper-plane"></i> Enviar Postulación
+          </button>
+        </form>
+      </div>
+    </div>
   </div>
-</div>
-
-</body>
+  </body>
 </html>
