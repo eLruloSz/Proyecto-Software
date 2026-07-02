@@ -57,7 +57,7 @@ async function cargarAyudantiasConfiguradas() {
           <span style="font-size:0.8rem; color:var(--muted);">${c.cupos} cupos</span>
         </div>
         <h3>${c.nombre_ramo}</h3>
-        <div class="meta"><i class="fas fa-id-badge"></i> RUT Prof: ${c.id_profesor_encargado}</div>
+        <div class="meta"><i class="fas fa-chalkboard-teacher"></i> Docente: ${c.id_profesor_encargado}</div>
         <div class="meta"><i class="fas fa-users"></i> ${c.postulantes} Postulantes actuales</div>
         <div style="margin-top: 10px; font-size:0.8rem; font-weight:bold; color: ${c.esta_abierto ? 'var(--success)' : 'var(--danger)'}">
           ${c.esta_abierto ? '● ABIERTA PARA POSTULAR' : '● CERRADA'}
