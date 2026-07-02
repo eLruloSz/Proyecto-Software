@@ -151,6 +151,7 @@ def _enriquecer_postulaciones(postulaciones_raw):
     estudiantes_resp = supabase.table("estudiantes").select("rut, nombre, ppa").in_("rut", ruts).execute()
     nombres_por_rut = {e["rut"]: e["nombre"] for e in estudiantes_resp.data}
     ppa_por_rut = {e["rut"]: e.get("ppa") for e in estudiantes_resp.data}
+    correo_por_rut = {e["rut"]: e.get("correo") for e in estudiantes_resp.data}
 
     notas_resp = supabase.table("notas_api").select("rut_estudiante, nrc, nota") \
         .in_("rut_estudiante", ruts).in_("nrc", nrcs).execute()
@@ -164,6 +165,7 @@ def _enriquecer_postulaciones(postulaciones_raw):
             "nombre_estudiante": nombres_por_rut.get(p["rut_estudiante"], p["rut_estudiante"]),
             "nota_obtenida": notas_por_rut_nrc.get((p["rut_estudiante"], p["nrc"])),
             "ppa": ppa_por_rut.get(p["rut_estudiante"]),
+            "correo": correo_por_rut.get(p["rut_estudiante"]),
         })
     return resultado
 
