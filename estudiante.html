@@ -51,6 +51,7 @@
       </div>
 
       <div id="view-mis-postulaciones" class="view-section">
+        <div id="misPostulacionesContainer" class="postulaciones-list"></div>
         <div class="app-page-title">
           <h1>Estado de Mis Postulaciones</h1>
           <p>Revisa si los profesores ya han revisado tu postulación.</p>
@@ -127,6 +128,23 @@
   
   <script src="js/common.js" defer></script>
   <script src="js/estudiante.js" defer></script>
+
+  <div class="modal-overlay" id="confirmModalEstudiante" role="dialog" aria-modal="true">
+    <div class="modal" style="max-width: 400px; text-align: center;">
+      <div class="modal-header" style="justify-content: center; border-bottom: none; padding-bottom: 0;">
+        <h3 style="font-size: 1.4rem;">Confirmar Retiro</h3>
+      </div>
+      <div class="modal-body" style="padding-top: 1rem;">
+        <p id="confirmMessageEstudiante" style="color: var(--muted); margin-bottom: 2rem; font-size: 1.05rem;">¿Estás seguro?</p>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+          <button class="btn btn-ghost" onclick="cerrarModalRetiro()">Cancelar</button>
+          <button class="btn btn-primary" id="confirmRetiroBtn" style="background: var(--danger); box-shadow: 0 4px 16px rgba(231,111,81,0.4);">
+            <i class="fas fa-trash"></i> Retirar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
 </body>
 </html>
