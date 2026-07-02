@@ -40,8 +40,8 @@ def debug_env():
 async def debug_ucn_estudiantes(periodo: str = "202520"):
     try:
         return await ucn_api.diagnosticar_estudiantes(periodo)
-    except Exception as e:
-        return {"error": str(e)}
+    except Exception:
+        return {"error": "No fue posible consultar el servicio UCN en este momento."}
 
 
 @app.get("/")
@@ -227,6 +227,10 @@ class EstudianteLogin(BaseModel):
 
 @app.post("/api/login")
 def login(datos: EstudianteLogin):
+    correo = datos.correo.strip()
+    if not correo:
+        raise HTTPException(status_code=400, detail="Correo requerido.")
+
     # OJO: la tabla 'profesores' (ver schema) no tiene columna 'correo', solo
     # rut/nombre/password_hash. Por eso, por ahora, solo dejamos funcionando
     # el login de estudiante. Login de docente/admin necesita agregar esa
@@ -238,7 +242,7 @@ def login(datos: EstudianteLogin):
             detail="Login de docente/admin aún no implementado: falta columna 'correo' en tabla 'profesores'."
         )
 
-    response = supabase.table("estudiantes").select("*").eq("correo", datos.correo).execute()
+    response = supabase.table("estudiantes").select("*").eq("correo", correo).execute()
 
     if not response.data:
         raise HTTPException(status_code=404, detail="Usuario no registrado")
@@ -348,9 +352,14 @@ async def sincronizar_ucn(data: SincronizarData = SincronizarData()):
                     resultados["notas"] += 1
 
             except Exception as e:
-                resultados["errores"].append(f"Error procesando RUT {est.get('rut', 'Desconocido')}: {str(e)}")
+                resultados["errores"].append(
+                    f"Error procesando RUT {est.get('rut', 'Desconocido')}: {type(e).__name__}"
+                )
 
         return {"message": "Sincronización completada", "periodo": data.periodo, "data": resultados}
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al sincronizar datos UCN: {str(e)}")
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="No fue posible sincronizar datos UCN en este momento."
+        )
