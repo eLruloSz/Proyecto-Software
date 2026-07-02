@@ -4,6 +4,8 @@
    ======================================== */
 
 let pendingAction = null;
+let datosGlobalesRamos = [];     
+let datosGlobalesPostulaciones = []; 
 
 document.addEventListener('DOMContentLoaded', () => {
   // Si no hay sesión de docente/admin válida, redirige a index.html
@@ -61,6 +63,13 @@ async function cargarPanelDocente() {
 
     const ramosData = await resRamos.json();
     const postulacionesData = await resPostulaciones.json();
+
+
+    datosGlobalesRamos = ramosData;
+    datosGlobalesPostulaciones = postulacionesData;
+    
+    
+    document.getElementById('btnDescargarExcel').style.display = 'inline-flex';
 
     renderizarPanelDocente(ramosData, postulacionesData);
   } catch (error) {
@@ -143,9 +152,11 @@ function renderizarFilaPostulante(p) {
         <div style="width:45px;height:45px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-deep));color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.2rem;">
           ${p.nombre_estudiante.charAt(0).toUpperCase()}
         </div>
-        <div style="font-size:0.95rem; color:var(--warning); font-weight: bold;">
-        <i class="fas fa-star"></i> Nota: ${p.nota_obtenida}
-            </div>
+        
+        <div style="font-size:0.95rem; font-weight: bold; display: flex; flex-direction: column; gap: 5px;">
+          <span style="color:var(--warning);"><i class="fas fa-star"></i> Nota Ramo: ${p.nota_obtenida || 'N/A'}</span>
+          <span style="color:var(--accent-light);"><i class="fas fa-chart-line"></i> PPA: ${p.ppa || 'N/A'}</span>
+        </div>
         <div>
           <div style="font-weight:700; color:var(--fg); font-size:1.05rem;">${p.nombre_estudiante}</div>
           <div style="font-size:0.85rem; color:var(--muted);">
@@ -195,4 +206,73 @@ async function ejecutarCambioEstado(nrc, rut, nuevoEstado) {
     console.error(error);
     showToast('Ocurrió un error al cambiar el estado de la postulación.', 'error');
   }
+}
+
+async function ejecutarCambioEstado(nrc, rut, nuevoEstado) {
+  try {
+    const response = await fetch(`${API_URL}/api/postulaciones/estado`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nrc_ramo: nrc, rut_estudiante: rut, nuevo_estado: nuevoEstado })
+    });
+    if (!response.ok) throw new Error('Error al modificar el estado en el backend');
+    await cargarPanelDocente();
+    showToast(`Postulación ${nuevoEstado === 'aceptado' ? 'aprobada' : 'rechazada'} correctamente.`, nuevoEstado === 'aceptado' ? 'success' : 'info');
+  } catch (error) {
+    console.error(error);
+    showToast('Ocurrió un error al cambiar el estado de la postulación.', 'error');
+  }
+}
+
+// ==============================================================
+// PEGA EL CÓDIGO NUEVO JUSTO AQUÍ, AL FINAL DEL ARCHIVO:
+// ==============================================================
+
+// --- NUEVA FUNCIÓN PARA EXPORTAR A EXCEL (CSV) ---
+function descargarReporteExcel() {
+  if (datosGlobalesPostulaciones.length === 0) {
+    showToast('No hay postulaciones para descargar.', 'info');
+    return;
+  }
+
+  // Usamos \uFEFF para que Excel reconozca los acentos (UTF-8 BOM)
+  // Usamos punto y coma (;) porque es el separador estándar de Excel en español
+  let csvContent = "\uFEFF"; 
+  csvContent += "NRC;Asignatura;RUT;Nombre Estudiante;Nota Asignatura;PPA;Estado\n";
+
+  datosGlobalesPostulaciones.forEach(p => {
+    // Buscar el nombre del ramo cruzando los datos
+    const ramo = datosGlobalesRamos.find(r => r.codigo_nrc === p.nrc_ramo);
+    const nombreRamo = ramo ? ramo.nombre_ramo : 'Desconocido';
+
+    // Limpiamos la data para que no rompa el CSV (quitamos posibles punto y comas en los nombres)
+    const nrc = p.nrc_ramo || '';
+    const asig = nombreRamo.replace(/;/g, ',');
+    const rut = p.rut_estudiante || '';
+    const nombre = (p.nombre_estudiante || '').replace(/;/g, ',');
+    const nota = p.nota_obtenida || 'N/A';
+    const ppa = p.ppa || 'N/A';
+    
+    // Traducimos el estado para el Excel
+    let estadoTexto = 'En revisión';
+    if (p.estado === 'aceptado') estadoTexto = 'Aprobado';
+    if (p.estado === 'rechazado') estadoTexto = 'Rechazado';
+
+    // Armamos la fila
+    csvContent += `${nrc};${asig};${rut};${nombre};${nota};${ppa};${estadoTexto}\n`;
+  });
+
+  // Creamos un Blob y forzamos la descarga del archivo .csv (Se abrirá nativamente en Excel)
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  
+  // Nombre del archivo con la fecha de hoy
+  const fecha = new Date().toISOString().split('T')[0];
+  link.setAttribute("href", url);
+  link.setAttribute("download", `Postulantes_Ayudantias_${fecha}.csv`);
+  
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
