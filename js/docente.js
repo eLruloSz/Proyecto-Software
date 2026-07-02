@@ -9,7 +9,7 @@ let datosGlobalesPostulaciones = [];
 
 document.addEventListener('DOMContentLoaded', () => {
   // Si no hay sesión de docente/admin válida, redirige a index.html
-  const sesion = Sesion.exigirRol(['docente', 'admin']);
+  const sesion = Sesion.exigirRol(['profesor', 'admin']);
   if (!sesion) return;
 
   enterDocentePage(sesion.rol, sesion.nombre);
