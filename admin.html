@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ayudantías UCN | Panel Administrador</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;400;600;800;900&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+
+  <div id="app-admin" class="app-page" style="display:block;">
+    <header class="app-header">
+      <div class="app-header-left">
+        <div class="brand-icon-sm" style="background: linear-gradient(135deg, var(--warning), #d48a42);"><i class="fas fa-cogs"></i></div>
+        <span>Sistema de Ayudantías</span>
+        <span style="font-size:0.75rem; color:var(--warning); font-weight:700; margin-left:8px; opacity:0.8;">| Panel Administrador</span>
+      </div>
+      <div class="app-header-right">
+        <div class="app-user-pill">
+          <div class="app-avatar-sm" style="background: linear-gradient(135deg, var(--warning), #d48a42);" id="adminHeaderAvatar">AD</div>
+          <span id="adminHeaderName">Administrador</span>
+        </div>
+        <button class="btn btn-ghost" style="padding: 8px 16px;" onclick="Sesion.limpiar(); window.location.href='index.html';">
+          <i class="fas fa-sign-out-alt"></i> Salir
+        </button>
+      </div>
+    </header>
+
+    <div class="app-content" style="padding-top: 2rem;">
+      <div style="max-width: 960px; margin: 0 auto; padding: 0 1.5rem 4rem;">
+
+        <div style="margin-bottom: 2.5rem;">
+          <h2 style="font-size: 1.8rem;">Apertura de Ayudantías</h2>
+          <p style="color: var(--muted);">Configura qué asignaturas aceptarán postulaciones este semestre.</p>
+        </div>
+
+        <div class="panel-card" style="margin-bottom: 3rem;">
+          <h3 style="margin-bottom: 1.5rem; font-size: 1.2rem; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Nueva Apertura</h3>
+          <form id="formApertura" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            
+            <div class="form-group" style="grid-column: span 2;">
+              <label>Asignatura (Catálogo)</label>
+              <select id="selectRamo" class="form-input" required>
+                <option value="">Cargando asignaturas...</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>NRC Específico</label>
+              <input type="text" id="inputNrc" class="form-input" placeholder="Ej: 10404" required>
+            </div>
+
+            <div class="form-group">
+              <label>Cantidad de Cupos</label>
+              <input type="number" id="inputCupos" class="form-input" min="1" value="1" required>
+            </div>
+
+            <div class="form-group" style="grid-column: span 2;">
+              <label>Profesor a Cargo</label>
+              <select id="selectProfesor" class="form-input" required>
+                <option value="">Cargando profesores...</option>
+              </select>
+            </div>
+
+            <div style="grid-column: span 2; text-align: right; margin-top: 10px;">
+              <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, var(--warning), #d48a42); box-shadow: 0 4px 16px rgba(244,162,97,0.3);">
+                <i class="fas fa-plus"></i> Abrir Ayudantía
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <h3 style="margin-bottom: 1rem; font-size: 1.2rem;">Ayudantías Configuradas</h3>
+        <div id="adminAyudantiasGrid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <p style="color:var(--muted);">Cargando panel...</p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+  <script src="js/common.js" defer></script>
+  <script src="js/admin.js" defer></script>
+</body>
+</html>
