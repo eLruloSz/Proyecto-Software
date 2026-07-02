@@ -4,3 +4,5 @@ supabase
 python-dotenv
 pydantic
 httpx
+passlib[bcrypt]
+bcrypt

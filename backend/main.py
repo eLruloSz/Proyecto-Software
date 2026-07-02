@@ -1,11 +1,11 @@
 import os
 from datetime import datetime, timezone
-from typing import Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from passlib.context import CryptContext
 
 from database import supabase
 import ucn_api
@@ -13,6 +13,7 @@ import ucn_api
 # --- INICIALIZACIÓN ---
 load_dotenv()
 app = FastAPI(title="Sistema Ayudantías UCN")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 app.add_middleware(
     CORSMiddleware,
@@ -210,73 +211,68 @@ def retirar_postulacion(nrc_ramo: str, rut_estudiante: str):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-# --- LOGIN / REGISTRO ---
+# --- LOGIN / ACTIVACIÓN DE CUENTA (RUT + contraseña) ---
 
-class EstudianteRegistro(BaseModel):
+class LoginData(BaseModel):
     rut: str
-    nombre: str
-    correo: str
-    password: str  # TODO: hashear con passlib antes de guardar
-
-
-class EstudianteLogin(BaseModel):
-    correo: str
     password: str
-    rol: Optional[str] = "estudiante"  # 'estudiante' | 'docente' | 'admin'
 
 
-@app.post("/api/login")
-def login(datos: EstudianteLogin):
-    correo = datos.correo.strip()
-    if not correo:
-        raise HTTPException(status_code=400, detail="Correo requerido.")
+class ActivarData(BaseModel):
+    rut: str
+    nueva_password: str
+    rol: str  # "estudiante" o "profesor"
 
-    # OJO: la tabla 'profesores' (ver schema) no tiene columna 'correo', solo
-    # rut/nombre/password_hash. Por eso, por ahora, solo dejamos funcionando
-    # el login de estudiante. Login de docente/admin necesita agregar esa
-    # columna en Supabase (ALTER TABLE profesores ADD COLUMN correo text;)
-    # o cambiar el formulario para pedir RUT en vez de correo.
-    if datos.rol in ("docente", "admin"):
-        raise HTTPException(
-            status_code=501,
-            detail="Login de docente/admin aún no implementado: falta columna 'correo' en tabla 'profesores'."
-        )
 
-    response = supabase.table("estudiantes").select("*").eq("correo", correo).execute()
+@app.post("/api/auth/login")
+def login(data: LoginData):
+    rut = data.rut.strip()
+    if not rut:
+        raise HTTPException(status_code=400, detail="RUT requerido.")
 
+    # 1. Buscar como estudiante (cargado por /api/admin/sincronizar)
+    resp_est = supabase.table("estudiantes").select("*").eq("rut", rut).execute()
+    if resp_est.data:
+        alumno = resp_est.data[0]
+        if not alumno.get("password_hash"):
+            raise HTTPException(status_code=403, detail="NEEDS_ACTIVATION")
+        if not pwd_context.verify(data.password, alumno["password_hash"]):
+            raise HTTPException(status_code=401, detail="Contraseña incorrecta.")
+        alumno.pop("password_hash", None)
+        return {"message": "Login exitoso", "user": alumno, "rol": "estudiante"}
+
+    # 2. Buscar como profesor
+    resp_prof = supabase.table("profesores").select("*").eq("rut", rut).execute()
+    if resp_prof.data:
+        prof = resp_prof.data[0]
+        if not prof.get("password_hash"):
+            raise HTTPException(status_code=403, detail="NEEDS_ACTIVATION_PROFESSOR")
+        if not pwd_context.verify(data.password, prof["password_hash"]):
+            raise HTTPException(status_code=401, detail="Contraseña incorrecta.")
+        prof.pop("password_hash", None)
+        return {"message": "Login exitoso", "user": prof, "rol": "profesor"}
+
+    raise HTTPException(status_code=404, detail="RUT no encontrado. Verifica que ya se haya sincronizado con la UCN.")
+
+
+@app.post("/api/auth/activar")
+def activar_cuenta(data: ActivarData):
+    """Primer ingreso: el RUT ya existe (viene de la sincronización UCN) pero
+    todavía no tiene contraseña -> el usuario crea la suya acá."""
+    tabla = "estudiantes" if data.rol == "estudiante" else "profesores"
+
+    rut = data.rut.strip()
+    response = supabase.table(tabla).select("rut").eq("rut", rut).execute()
     if not response.data:
-        raise HTTPException(status_code=404, detail="Usuario no registrado")
+        raise HTTPException(status_code=404, detail="RUT no válido.")
 
-    usuario = response.data[0]
+    if len(data.nueva_password) < 6:
+        raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 6 caracteres.")
 
-    # Estudiantes cargados desde la API externa tienen password_hash NULL:
-    # nunca se han logueado. Este es su primer login real -> se guarda la
-    # contraseña que acaban de escribir en vez de compararla contra NULL.
-    if usuario.get("password_hash") is None:
-        supabase.table("estudiantes").update(
-            {"password_hash": datos.password}  # TODO: hashear
-        ).eq("rut", usuario["rut"]).execute()
-        usuario["password_hash"] = datos.password
-        return {"mensaje": "Cuenta activada y login exitoso", "usuario": usuario}
+    hash_guardado = pwd_context.hash(data.nueva_password)
+    supabase.table(tabla).update({"password_hash": hash_guardado}).eq("rut", rut).execute()
 
-    if usuario["password_hash"] != datos.password:  # TODO: comparar hash, no texto plano
-        raise HTTPException(status_code=401, detail="Contraseña incorrecta")
-
-    return {"mensaje": "Login exitoso", "usuario": usuario}
-
-
-@app.post("/api/registro")
-def registro(datos: EstudianteRegistro):
-    try:
-        response = supabase.table("estudiantes").insert({
-            "rut": datos.rut,
-            "nombre": datos.nombre,
-            "correo": datos.correo,
-            "password_hash": datos.password
-        }).execute()
-        return {"mensaje": "Registro exitoso", "usuario": response.data[0]}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail="El correo o RUT ya existe")
+    return {"message": "Cuenta activada correctamente. Ya puedes iniciar sesión."}
 
 
 # --- SINCRONIZACIÓN CON LA API DE LA UCN (de main, la usará el admin) ---

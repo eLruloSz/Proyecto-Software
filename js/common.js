@@ -63,17 +63,14 @@ function showToast(message, type = 'info') {
 }
 
 /* ========================================
-   MODALES LOGIN (Google Workspace Mock)
+   MODAL LOGIN (RUT + contraseña)
    Usado solo desde index.html, pero vive aquí porque
    comparte lógica de sesión con las otras páginas.
    ======================================== */
 
-let loginAttemptRole = null;
-let extractedUserName = ""; // Nombre extraído del correo mientras se escribe
-
 function openModal(type) {
-  document.getElementById('modalTitle').textContent = 'Autenticación UCN';
-  document.getElementById('modalBody').innerHTML = buildRBACLogin();
+  document.getElementById('modalTitle').textContent = 'Iniciar sesión';
+  document.getElementById('modalBody').innerHTML = buildRutLogin();
   document.getElementById('modalOverlay').classList.add('active');
   document.body.style.overflow = 'hidden';
 }
@@ -81,132 +78,149 @@ function openModal(type) {
 function closeModal() { document.getElementById('modalOverlay').classList.remove('active'); document.body.style.overflow = ''; }
 function closeGoogleMock() { document.getElementById('googleMockOverlay').classList.remove('active'); document.body.style.overflow = ''; }
 
-function buildRBACLogin() {
+function buildRutLogin() {
   return `
-    <p style="color: var(--fg-secondary); margin-bottom: 1.5rem; font-size: 0.95rem;">Selecciona cómo deseas ingresar.</p>
-    <div style="display: flex; flex-direction: column; gap: 12px;">
-      <button class="btn btn-ghost" style="justify-content: flex-start; padding: 16px 20px; border-radius: var(--radius);" onclick="initGoogleMock('estudiante')">
-        <i class="fas fa-user-graduate" style="font-size: 1.2rem; color: var(--success); width: 24px;"></i>
-        <div style="text-align: left;"><div style="font-weight: 700; color: var(--fg);">Acceso Estudiantes</div><div style="font-size: 0.8rem; color: var(--muted); font-weight: 400;">Dominio @alumnos.ucn.cl</div></div>
-      </button>
-      <button class="btn btn-ghost" style="justify-content: flex-start; padding: 16px 20px; border-radius: var(--radius);" onclick="initGoogleMock('docente')">
-        <i class="fas fa-chalkboard-teacher" style="font-size: 1.2rem; color: var(--accent-light); width: 24px;"></i>
-        <div style="text-align: left;"><div style="font-weight: 700; color: var(--fg);">Acceso Docentes</div><div style="font-size: 0.8rem; color: var(--muted); font-weight: 400;">Dominio @ce.ucn.cl</div></div>
-      </button>
-      <button class="btn btn-ghost" style="justify-content: flex-start; padding: 16px 20px; border-radius: var(--radius);" onclick="initGoogleMock('admin')">
-        <i class="fas fa-shield-alt" style="font-size: 1.2rem; color: var(--warning); width: 24px;"></i>
-        <div style="text-align: left;"><div style="font-weight: 700; color: var(--fg);">Acceso Administradores</div><div style="font-size: 0.8rem; color: var(--muted); font-weight: 400;">Dominio @ucn.cl</div></div>
-      </button>
-    </div>`;
+    <p style="color: var(--fg-secondary); margin-bottom: 1.5rem; font-size: 0.95rem;">Ingresa tu RUT y contraseña institucional.</p>
+    <div class="form-group" style="text-align: left;">
+      <label for="loginRut">RUT</label>
+      <input type="text" id="loginRut" class="form-input" placeholder="12.345.678-9">
+    </div>
+    <div class="form-group" style="text-align: left; margin-top: 1.5rem;">
+      <label for="loginPass">Contraseña</label>
+      <input type="password" id="loginPass" class="form-input" placeholder="Tu contraseña">
+    </div>
+    <button class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 1.5rem;" onclick="handleRutLogin()">
+      Ingresar
+    </button>
+    <div id="loginError" style="color: var(--danger); font-size: 0.85rem; text-align: center; margin-top: 1rem; display: none;"></div>
+  `;
 }
 
-function initGoogleMock(role) {
-  loginAttemptRole = role; closeModal();
-  setTimeout(() => {
-    const domainMap = { estudiante: '@alumnos.ucn.cl', docente: '@ce.ucn.cl', admin: '@ucn.cl' };
-    document.getElementById('googleMockBody').innerHTML = `
-      <div style="margin-bottom: 2rem;">
-        <img src="https://www.ucn.cl/content/uploads/2023/05/ucn-escudo-full-color.png" alt="UCN" style="height: 50px; margin-bottom: 1rem;">
-        <p style="font-size: 1.1rem; font-weight: 600; color: var(--fg);">Iniciar sesión con Google Workspace</p>
-        <p style="font-size: 0.9rem; color: var(--muted); margin-top: 5px;">Continuar como <strong style="color:var(--accent-light); text-transform:capitalize;">${role === 'docente' ? 'Docente' : role}</strong></p>
-      </div>
-      <div class="form-group" style="text-align: left;">
-        <label for="mockEmail">Correo electrónico</label>
-        <input type="email" id="mockEmail" class="form-input" placeholder="usuario${domainMap[role]}" oninput="handleMockEmailInput(this.value, '${role}')">
-        <small id="mockEmailError" style="color: var(--danger); display: none; margin-top: 5px;">
-          <i class="fas fa-exclamation-triangle"></i> Debes usar un correo terminado en ${domainMap[role]}
-        </small>
-      </div>
-      <div class="form-group" style="text-align: left; margin-top: 1.5rem;">
-        <label for="mockPass">Contraseña</label>
-        <input type="password" id="mockPass" class="form-input" placeholder="Ingresa tu contraseña institucional">
-      </div>
-      <button class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 1.5rem;" onclick="handleMockLogin()">Acceder</button>
-      <p style="font-size: 0.8rem; color: var(--muted); margin-top: 1rem;">* Simulación Frontend. Se conectará a API Google Workspace posteriormente.</p>
-    `;
-    document.getElementById('googleMockOverlay').classList.add('active');
-    document.body.style.overflow = 'hidden';
-  }, 300);
-}
+async function handleRutLogin() {
+  const rut = document.getElementById('loginRut').value.trim();
+  const pass = document.getElementById('loginPass').value.trim();
+  const errorDiv = document.getElementById('loginError');
+  errorDiv.style.display = 'none';
 
-function handleMockEmailInput(email, role) {
-  const errorDiv = document.getElementById('mockEmailError');
-  const domainMap = { estudiante: '@alumnos.ucn.cl', docente: '@ce.ucn.cl', admin: '@ucn.cl' };
-  const requiredDomain = domainMap[role];
-
-  if (!email.endsWith(requiredDomain) && email.length > 5) {
+  if (!rut || !pass) {
+    errorDiv.textContent = 'Debes ingresar RUT y contraseña.';
     errorDiv.style.display = 'block';
-  } else {
-    errorDiv.style.display = 'none';
-  }
-
-  if (email.includes('@')) {
-    const userPart = email.split('@')[0];
-    extractedUserName = userPart.split('.').map(name => name.charAt(0).toUpperCase() + name.slice(1)).join(' ');
-  } else {
-    extractedUserName = "";
-  }
-}
-
-async function handleMockLogin() {
-  const email = document.getElementById('mockEmail').value.trim();
-  const pass = document.getElementById('mockPass').value.trim();
-
-  const domainMap = { estudiante: '@alumnos.ucn.cl', docente: '@ce.ucn.cl', admin: '@ucn.cl' };
-  const requiredDomain = domainMap[loginAttemptRole];
-
-  if (!email) { showToast('Debes ingresar tu correo.', 'error'); return; }
-  if (!email.endsWith(requiredDomain)) {
-    showToast(`Error: El correo debe terminar sí o sí en ${requiredDomain}`, 'error');
     return;
   }
-  if (!pass) { showToast('Debes ingresar tu contraseña.', 'error'); return; }
-  if (pass.length < 4) { showToast('Contraseña incorrecta.', 'error'); return; }
 
   try {
-    const btn = document.querySelector('#googleMockBody .btn-primary');
+    const btn = document.querySelector('#modalBody .btn-primary');
     const textoOriginal = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...';
     btn.disabled = true;
 
-    const response = await fetch(`${API_URL}/api/login`, {
+    const response = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ correo: email, password: pass, rol: loginAttemptRole })
+      body: JSON.stringify({ rut, password: pass })
     });
 
     btn.innerHTML = textoOriginal;
     btn.disabled = false;
 
-    if (response.status === 404 && loginAttemptRole === 'estudiante') {
-      showToast('No tienes cuenta. Debes registrarte por primera vez.', 'info');
+    if (response.status === 403) {
+      const data = await response.json();
+      const rolTabla = data.detail === 'NEEDS_ACTIVATION_PROFESSOR' ? 'profesor' : 'estudiante';
+      closeModal();
+      showActivationScreen(rut, rolTabla);
       return;
     }
 
     if (!response.ok) {
-      throw new Error("Contraseña incorrecta o error de servidor.");
+      const data = await response.json().catch(() => ({}));
+      errorDiv.textContent = data.detail || 'RUT o contraseña incorrectos.';
+      errorDiv.style.display = 'block';
+      return;
     }
 
     const data = await response.json();
-    const nombreFinal = (data.usuario && data.usuario.nombre) ? data.usuario.nombre : extractedUserName;
-    const rutFinal = (data.usuario && data.usuario.rut) ? data.usuario.rut : null;
+    const usuario = data.user || {};
+    // 'profesor' cubre tanto docente como admin por ahora (misma tabla en la BD)
+    const rolFinal = data.rol === 'profesor' ? 'docente' : 'estudiante';
 
-    showToast(`Bienvenido/a, ${nombreFinal}. Redirigiendo...`, 'success');
-    closeGoogleMock();
+    showToast(`Bienvenido/a, ${usuario.nombre || rut}. Redirigiendo...`, 'success');
+    closeModal();
 
-    // Guardamos la sesión en localStorage para que sobreviva al cambio de página
-    Sesion.guardar({ rol: loginAttemptRole, nombre: nombreFinal, correo: email, rut: rutFinal });
+    Sesion.guardar({ rol: rolFinal, nombre: usuario.nombre, correo: usuario.correo || '', rut: usuario.rut || rut });
 
     setTimeout(() => {
-      if (loginAttemptRole === 'estudiante') {
-        window.location.href = 'estudiante.html';
-      } else if (loginAttemptRole === 'docente' || loginAttemptRole === 'admin') {
-        window.location.href = 'docente.html';
-      }
-    }, 1000);
+      window.location.href = rolFinal === 'estudiante' ? 'estudiante.html' : 'docente.html';
+    }, 800);
 
   } catch (error) {
-    showToast(error.message, 'error');
+    errorDiv.textContent = 'Error de conexión con el servidor.';
+    errorDiv.style.display = 'block';
+  }
+}
+
+function showActivationScreen(rut, rolTabla) {
+  document.getElementById('googleMockBody').innerHTML = `
+    <div style="margin-bottom: 1.5rem;">
+      <p style="font-size: 1.05rem; font-weight: 600; color: var(--fg);">Primer ingreso</p>
+      <p style="font-size: 0.9rem; color: var(--muted); margin-top: 5px;">
+        RUT <strong>${rut}</strong> encontrado. Crea tu contraseña para continuar.
+      </p>
+    </div>
+    <div class="form-group" style="text-align: left;">
+      <label for="newPass">Nueva contraseña</label>
+      <input type="password" id="newPass" class="form-input" placeholder="Mínimo 6 caracteres">
+    </div>
+    <div class="form-group" style="text-align: left; margin-top: 1rem;">
+      <label for="confirmPass">Repetir contraseña</label>
+      <input type="password" id="confirmPass" class="form-input" placeholder="Repite tu contraseña">
+    </div>
+    <button class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 1.5rem;" onclick="handleActivacion('${rut}', '${rolTabla}')">
+      Crear contraseña e ingresar
+    </button>
+    <div id="activarError" style="color: var(--danger); font-size: 0.85rem; text-align: center; margin-top: 1rem; display: none;"></div>
+  `;
+  document.getElementById('googleMockOverlay').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+async function handleActivacion(rut, rolTabla) {
+  const newPass = document.getElementById('newPass').value.trim();
+  const confirmPass = document.getElementById('confirmPass').value.trim();
+  const errorDiv = document.getElementById('activarError');
+  errorDiv.style.display = 'none';
+
+  if (newPass.length < 6) {
+    errorDiv.textContent = 'La contraseña debe tener al menos 6 caracteres.';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  if (newPass !== confirmPass) {
+    errorDiv.textContent = 'Las contraseñas no coinciden.';
+    errorDiv.style.display = 'block';
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/api/auth/activar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rut, nueva_password: newPass, rol: rolTabla })
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      errorDiv.textContent = data.detail || 'No se pudo activar la cuenta.';
+      errorDiv.style.display = 'block';
+      return;
+    }
+
+    showToast('Cuenta activada. Ahora inicia sesión con tu nueva contraseña.', 'success');
+    closeGoogleMock();
+    openModal('login');
+
+  } catch (error) {
+    errorDiv.textContent = 'Error de conexión con el servidor.';
+    errorDiv.style.display = 'block';
   }
 }
 
