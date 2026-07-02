@@ -1,7 +1,3 @@
-/* ========================================
-   common.js
-   ======================================== */
-
 const API_URL = 'http://127.0.0.1:8000';
 
 const Sesion = {
@@ -38,7 +34,7 @@ const Sesion = {
   }
 };
 
-/* ---------- TOASTS ---------- */
+
 function showToast(message, type = 'info') {
   const container = document.getElementById('toastContainer');
   if (!container) return;
@@ -50,7 +46,6 @@ function showToast(message, type = 'info') {
   setTimeout(() => { toast.classList.add('toast-out'); setTimeout(() => toast.remove(), 300); }, 3500);
 }
 
-/* ---------- MODAL LOGIN ---------- */
 function openModal(type) {
   document.getElementById('modalTitle').textContent = 'Iniciar sesión';
   document.getElementById('modalBody').innerHTML = buildRutLogin();

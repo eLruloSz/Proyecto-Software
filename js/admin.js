@@ -1,16 +1,12 @@
-/* ========================================
-   admin.js
-   Lógica exclusiva de admin.html
-   ======================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
   
-  // Escuchar cuando cambie la asignatura seleccionada para sugerir NRCs
+  
 document.getElementById('selectRamo').addEventListener('change', async (e) => {
   const codigoRamo = e.target.value;
   const datalist = document.getElementById('nrcSuggestions');
   
-  // Limpiamos sugerencias anteriores
+
   datalist.innerHTML = '';
   
   if (!codigoRamo) return;
@@ -21,7 +17,7 @@ document.getElementById('selectRamo').addEventListener('change', async (e) => {
     
     const nrcs = await res.json();
     
-    // Poblamos el datalist con las opciones devueltas por el servidor
+    
     datalist.innerHTML = nrcs.map(nrc => `<option value="${nrc}"></option>`).join('');
   } catch (error) {
     console.error("Error al cargar sugerencias de NRC:", error);
@@ -30,30 +26,27 @@ document.getElementById('selectRamo').addEventListener('change', async (e) => {
   
   
   
-  // Exigimos rol de admin estrictamente
   const sesion = Sesion.exigirRol(['admin']);
   if (!sesion) return;
 
   document.getElementById('adminHeaderName').textContent = sesion.nombre || 'Admin';
   
-  // Cargar datos
+  
   cargarSelects();
   cargarAyudantiasConfiguradas();
 
-  // Escuchar el evento de formulario
   document.getElementById('formApertura').addEventListener('submit', handleApertura);
 });
 
 async function cargarSelects() {
   try {
-    // Cargar Catálogo de Ramos
+    
     const resRamos = await fetch(`${API_URL}/api/ramos/catalogo`);
     const ramos = await resRamos.json();
     const selectRamo = document.getElementById('selectRamo');
     selectRamo.innerHTML = '<option value="">-- Selecciona un Ramo --</option>' + 
       ramos.map(r => `<option value="${r.codigo}">${r.codigo} - ${r.nombre}</option>`).join('');
 
-    // Cargar Profesores
     const resProfes = await fetch(`${API_URL}/api/profesores`);
     const profesores = await resProfes.json();
     const selectProfe = document.getElementById('selectProfesor');
@@ -152,8 +145,8 @@ async function handleApertura(e) {
     if (!response.ok) throw new Error('Ocurrió un error al guardar en la base de datos');
 
     showToast('Ayudantía configurada exitosamente', 'success');
-    e.target.reset(); // Limpiar formulario
-    cargarAyudantiasConfiguradas(); // Recargar la lista
+    e.target.reset(); 
+    cargarAyudantiasConfiguradas(); 
   } catch (error) {
     showToast(error.message, 'error');
   } finally {
