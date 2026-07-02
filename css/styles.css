@@ -493,7 +493,7 @@
     }
 
     .step-card:hover .step-icon {
-      background: var(--accent-subtle);
+      background: #16385a; /* sólido, ligeramente más claro que --card, en vez del --accent-subtle transparente que dejaba ver la línea conectora de fondo */
       border-color: var(--accent);
       box-shadow: 0 0 30px var(--accent-glow);
       transform: translateY(-4px);

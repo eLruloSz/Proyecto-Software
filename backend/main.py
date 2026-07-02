@@ -1,14 +1,14 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from database import supabase 
+from datetime import datetime, timezone
+from database import supabase
 
 app = FastAPI()
 
-# Configurar CORS (Para que tu HTML local pueda hablar con el backend)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Cambia esto por "http://127.0.0.1:5500" en el futuro
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -16,105 +16,167 @@ app.add_middleware(
 
 # --- ENDPOINTS ---
 
-@app.get("/api/ramos")
-def obtener_ramos():
-    """
-    Trae todos los ramos de la base de datos de Supabase.
-    """
-    response = supabase.table("ramos").select("*").execute()
-    return response.data
-
 @app.get("/")
 def root():
     return {"message": "API del Sistema de Ayudantías UCN funcionando correctamente"}
 
+
+@app.get("/api/ramos")
+def obtener_ramos():
+    """
+    No existe una tabla que junte todo, así que se arma acá:
+      - ramos: catálogo fijo (codigo, nombre)
+      - configuracion_ayudantias: la config real de ayudantía por NRC
+        (nrc, rut_profesor, cupos, esta_abierto)
+    Se devuelve con los MISMOS nombres de campo que el frontend
+    (estudiante.js / docente.js) ya espera, para no tocar el JS.
+    """
+    ramos_resp = supabase.table("ramos").select("*").execute()
+    config_resp = supabase.table("configuracion_ayudantias").select("*").execute()
+    # 'departamento' no existe en 'ramos' ni en 'configuracion_ayudantias':
+    # ese dato no está en la BD actual. Se muestra vacío en vez de inventarlo.
+    # 'postulantes' tampoco es una columna: se cuenta en vivo desde 'postulaciones'.
+    postulaciones_resp = supabase.table("postulaciones").select("nrc, estado").execute()
+
+    ramos_por_codigo = {r["codigo"]: r for r in ramos_resp.data}
+
+    conteo_postulantes = {}
+    for p in postulaciones_resp.data:
+        if p.get("estado") != "rechazado":
+            conteo_postulantes[p["nrc"]] = conteo_postulantes.get(p["nrc"], 0) + 1
+
+    resultado = []
+    for cfg in config_resp.data:
+        ramo_base = ramos_por_codigo.get(cfg["codigo_ramo"], {})
+        nrc = cfg.get("nrc")
+        resultado.append({
+            "codigo_nrc": nrc,
+            "nombre_ramo": ramo_base.get("nombre", "Ramo sin nombre"),
+            "departamento": "",  # dato no disponible en la BD actual
+            "cupos": cfg.get("cupos"),
+            "esta_abierto": cfg.get("esta_abierto"),
+            "id_profesor_encargado": cfg.get("rut_profesor"),
+            "postulantes": conteo_postulantes.get(nrc, 0),
+        })
+    return resultado
+
+
 class Postulacion(BaseModel):
     nrc_ramo: str
     rut_estudiante: str
-    nombre_estudiante: str
-    nota_obtenida: float
+    nombre_estudiante: str   # se recibe pero no se guarda: no existe la columna
+    nota_obtenida: float     # idem, se recalcula desde notas_api al leer
 
 @app.post("/api/postular")
 def crear_postulacion(postulacion: Postulacion):
     try:
-        
+        # Solo se insertan columnas que existen de verdad en 'postulaciones':
+        # id (auto), rut_estudiante, estado, nrc, fecha_postulacion
         response = supabase.table("postulaciones").insert({
-            "nrc_ramo": postulacion.nrc_ramo,
+            "nrc": postulacion.nrc_ramo,
             "rut_estudiante": postulacion.rut_estudiante,
-            "nombre_estudiante": postulacion.nombre_estudiante,
-           "nota_obtenida": postulacion.nota_obtenida,
             "estado": "revision",
-            "semestre": "2026-1"
+            "fecha_postulacion": datetime.now(timezone.utc).isoformat(),
         }).execute()
-        
-        # 2. Buscamos el ramo
-        ramo = supabase.table("ramos").select("postulantes").eq("codigo_nrc", postulacion.nrc_ramo).execute()
-        
-        # 3. Sumamos 1
-        if ramo.data:
-            postulantes_actuales = ramo.data[0].get("postulantes", 0)
-            nuevo_valor = postulantes_actuales + 1
-            
-            
-            supabase.table("ramos").update({"postulantes": nuevo_valor}).eq("codigo_nrc", postulacion.nrc_ramo).execute()
 
-        return {"mensaje": "Postulación guardada y contador actualizado"}
-    
+        return {"mensaje": "Postulación guardada correctamente"}
+
     except Exception as e:
-        # Ahora si falla, lo imprimirá en rojo en tu terminal de VS Code
-        print(f" ERROR EN EL BACKEND: {str(e)}") 
+        print(f" ERROR EN EL BACKEND: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
-    
 
-    # --- NUEVOS ENDPOINTS PARA EL PANEL DOCENTE/ADMIN ---
 
-# --- NUEVOS ENDPOINTS PARA EL PANEL DOCENTE Y ADMINISTRADOR ---
+def _enriquecer_postulaciones(postulaciones_raw):
+    """Le pega a cada postulación el nombre del estudiante (tabla estudiantes)
+    y la nota con la que aprobó ese ramo (tabla notas_api), sin necesitar
+    columnas nuevas en 'postulaciones'."""
+    if not postulaciones_raw:
+        return []
+
+    ruts = list({p["rut_estudiante"] for p in postulaciones_raw})
+    nrcs = list({p["nrc"] for p in postulaciones_raw})
+
+    estudiantes_resp = supabase.table("estudiantes").select("rut, nombre").in_("rut", ruts).execute()
+    nombres_por_rut = {e["rut"]: e["nombre"] for e in estudiantes_resp.data}
+
+    notas_resp = supabase.table("notas_api").select("rut_estudiante, nrc, nota") \
+        .in_("rut_estudiante", ruts).in_("nrc", nrcs).execute()
+    notas_por_rut_nrc = {(n["rut_estudiante"], n["nrc"]): n["nota"] for n in notas_resp.data}
+
+    resultado = []
+    for p in postulaciones_raw:
+        resultado.append({
+            **p,
+            "nrc_ramo": p.get("nrc"),
+            "nombre_estudiante": nombres_por_rut.get(p["rut_estudiante"], p["rut_estudiante"]),
+            "nota_obtenida": notas_por_rut_nrc.get((p["rut_estudiante"], p["nrc"])),
+        })
+    return resultado
+
 
 @app.get("/api/postulaciones")
 def obtener_postulaciones():
-    """Trae todas las postulaciones del sistema desde Supabase."""
+    """Trae todas las postulaciones enriquecidas con nombre y nota."""
     try:
         response = supabase.table("postulaciones").select("*").execute()
-        return response.data
+        return _enriquecer_postulaciones(response.data)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 class ActualizarEstado(BaseModel):
     nrc_ramo: str
     rut_estudiante: str
-    nuevo_estado: str  # Puede recibir 'aceptado' o 'rechazado'
+    nuevo_estado: str  # 'aceptado' o 'rechazado'
 
 @app.put("/api/postulaciones/estado")
 def actualizar_estado(datos: ActualizarEstado):
-    """Actualiza el estado de una postulación y libera el cupo si es rechazado."""
+    """Actualiza el estado de una postulación (columna real: 'nrc')."""
     try:
-        # 1. Actualizamos el estado a 'aceptado' o 'rechazado'
-        response = supabase.table("postulaciones")\
-            .update({"estado": datos.nuevo_estado})\
-            .eq("nrc_ramo", datos.nrc_ramo)\
-            .eq("rut_estudiante", datos.rut_estudiante)\
+        supabase.table("postulaciones") \
+            .update({"estado": datos.nuevo_estado}) \
+            .eq("nrc", datos.nrc_ramo) \
+            .eq("rut_estudiante", datos.rut_estudiante) \
             .execute()
-        
-        # 2. Si el estudiante fue rechazado, restamos 1 al contador del ramo
-        if datos.nuevo_estado == 'rechazado':
-            ramo = supabase.table("ramos").select("postulantes").eq("codigo_nrc", datos.nrc_ramo).execute()
-            if ramo.data:
-                postulantes_actuales = ramo.data[0].get("postulantes", 0)
-                if postulantes_actuales > 0:
-                    supabase.table("ramos").update({"postulantes": postulantes_actuales - 1}).eq("codigo_nrc", datos.nrc_ramo).execute()
 
         return {"mensaje": "Estado actualizado correctamente"}
     except Exception as e:
         print(f" ERROR AL CAMBIAR ESTADO: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
-    
 
-    # main.py
+
+@app.delete("/api/postulaciones")
+def retirar_postulacion(nrc_ramo: str, rut_estudiante: str):
+    """Retira (borra) una postulación en 'revision'. El estudiante solo puede
+    retirar postulaciones propias que aún no fueron resueltas por el profesor."""
+    try:
+        existente = supabase.table("postulaciones").select("estado") \
+            .eq("nrc", nrc_ramo).eq("rut_estudiante", rut_estudiante).execute()
+
+        if not existente.data:
+            raise HTTPException(status_code=404, detail="Postulación no encontrada")
+
+        if existente.data[0]["estado"] != "revision":
+            raise HTTPException(status_code=400, detail="Solo se pueden retirar postulaciones en revisión")
+
+        supabase.table("postulaciones") \
+            .delete() \
+            .eq("nrc", nrc_ramo).eq("rut_estudiante", rut_estudiante) \
+            .execute()
+
+        return {"mensaje": "Postulación retirada correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f" ERROR AL RETIRAR POSTULACIÓN: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 class EstudianteRegistro(BaseModel):
     rut: str
     nombre: str
     correo: str
-    password: str # En producción, esto DEBE ir hasheado (ej. usando passlib)
+    password: str  # TODO: hashear con passlib antes de guardar
 
 class EstudianteLogin(BaseModel):
     correo: str
@@ -122,17 +184,28 @@ class EstudianteLogin(BaseModel):
 
 @app.post("/api/login")
 def login(datos: EstudianteLogin):
-    # Consultar a Supabase si existe el usuario
     response = supabase.table("estudiantes").select("*").eq("correo", datos.correo).execute()
-    
+
     if not response.data:
         raise HTTPException(status_code=404, detail="Usuario no registrado")
-    
+
     usuario = response.data[0]
-    if usuario["password"] != datos.password: # Recuerda usar hashes en el futuro
+
+    # Estudiantes cargados desde la API externa tienen password_hash NULL:
+    # nunca se han logueado. Este es su primer login real -> se guarda la
+    # contraseña que acaban de escribir en vez de compararla contra NULL.
+    if usuario.get("password_hash") is None:
+        supabase.table("estudiantes").update(
+            {"password_hash": datos.password}  # TODO: hashear
+        ).eq("rut", usuario["rut"]).execute()
+        usuario["password_hash"] = datos.password
+        return {"mensaje": "Cuenta activada y login exitoso", "usuario": usuario}
+
+    if usuario["password_hash"] != datos.password:  # TODO: comparar hash, no texto plano
         raise HTTPException(status_code=401, detail="Contraseña incorrecta")
-        
+
     return {"mensaje": "Login exitoso", "usuario": usuario}
+
 
 @app.post("/api/registro")
 def registro(datos: EstudianteRegistro):
@@ -141,7 +214,7 @@ def registro(datos: EstudianteRegistro):
             "rut": datos.rut,
             "nombre": datos.nombre,
             "correo": datos.correo,
-            "password": datos.password
+            "password_hash": datos.password
         }).execute()
         return {"mensaje": "Registro exitoso", "usuario": response.data[0]}
     except Exception as e:

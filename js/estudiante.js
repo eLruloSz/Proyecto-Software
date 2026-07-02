@@ -3,10 +3,11 @@
    Lógica exclusiva de estudiante.html.
    ======================================== */
 
-// Array para guardar a qué asignaturas postuló en esta sesión
-let appliedCourses = [
-  { code: 'NRC:12900', status: 'revision' } // Ejemplo de postulación previa
-];
+// Postulaciones reales del estudiante, cargadas desde el backend.
+// (Antes había un dato de ejemplo hardcodeado 'NRC:12900' que quedó
+// de cuando se maquetó la pantalla antes de tener base de datos real.
+// Se eliminó: ahora esto se llena solo con fetchMisPostulaciones().)
+let appliedCourses = [];
 
 let coursesData = [];
 
@@ -23,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
   enterStudentPage();
 });
 
-function enterStudentPage() {
+async function enterStudentPage() {
   const iniciales = studentData.name.split(' ').map(n => n[0]).join('').toUpperCase();
   document.getElementById('headerAvatar').textContent = iniciales;
   document.getElementById('headerName').textContent = studentData.name;
@@ -31,7 +32,11 @@ function enterStudentPage() {
   document.getElementById('perfilCorreo').textContent = studentData.email;
   document.getElementById('perfilRut').textContent = studentData.rut;
 
-  fetchRamosYRenderizar();
+  // Primero traemos los ramos, y solo después las postulaciones,
+  // porque renderMyApplications necesita coursesData ya cargado
+  // para poder mostrar el nombre de la asignatura.
+  await fetchRamosYRenderizar();
+  await fetchMisPostulaciones();
 }
 
 async function fetchRamosYRenderizar() {
@@ -40,10 +45,29 @@ async function fetchRamosYRenderizar() {
     if (!response.ok) throw new Error("Error al conectar con el servidor");
     coursesData = await response.json();
     renderDashboardCourses();
-    renderMyApplications();
   } catch (error) {
     console.error(error);
     showToast('Error al cargar las asignaturas desde el servidor.', 'error');
+  }
+}
+
+async function fetchMisPostulaciones() {
+  try {
+    const response = await fetch(`${API_URL}/api/postulaciones`);
+    if (!response.ok) throw new Error("Error al conectar con el servidor");
+    const todas = await response.json();
+
+    // El backend devuelve TODAS las postulaciones (las necesita el panel docente);
+    // acá nos quedamos solo con las del estudiante logueado.
+    appliedCourses = todas
+      .filter(p => p.rut_estudiante === studentData.rut)
+      .map(p => ({ code: p.nrc_ramo, status: p.estado }));
+
+    renderDashboardCourses();
+    renderMyApplications();
+  } catch (error) {
+    console.error(error);
+    showToast('Error al cargar tus postulaciones desde el servidor.', 'error');
   }
 }
 
@@ -84,11 +108,20 @@ function renderDashboardCourses() {
   }).join('');
 }
 
-function withdrawApplication(code, name) {
-  appliedCourses = appliedCourses.filter(app => app.code !== code);
-  renderDashboardCourses();
-  renderMyApplications();
-  showToast(`Has retirado tu postulación a ${name} correctamente.`, 'info');
+async function withdrawApplication(code, name) {
+  try {
+    const url = `${API_URL}/api/postulaciones?nrc_ramo=${encodeURIComponent(code)}&rut_estudiante=${encodeURIComponent(studentData.rut)}`;
+    const response = await fetch(url, { method: 'DELETE' });
+    if (!response.ok) throw new Error("No se pudo retirar la postulación en el servidor");
+
+    appliedCourses = appliedCourses.filter(app => app.code !== code);
+    renderDashboardCourses();
+    renderMyApplications();
+    showToast(`Has retirado tu postulación a ${name} correctamente.`, 'info');
+  } catch (error) {
+    console.error(error);
+    showToast('No se pudo retirar la postulación. Intenta de nuevo.', 'error');
+  }
 }
 
 function renderMyApplications() {
@@ -112,7 +145,7 @@ function renderMyApplications() {
       <tr>
         <td style="font-weight:700; color:var(--accent);">${app.code}</td>
         <td>${course ? course.nombre_ramo : 'Desconocida'}</td>
-        <td>${course ? (course.profesor || 'Por asignar') : 'Desconocido'}</td>
+        <td>${course ? (course.id_profesor_encargado || 'Por asignar') : 'Desconocido'}</td>
         <td><span class="status-badge ${s.class}"><i class="fas ${s.icon}"></i> ${s.text}</span></td>
         <td>
           ${canWithdraw ? `
