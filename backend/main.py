@@ -78,6 +78,7 @@ def obtener_ramos():
         nrc = cfg.get("nrc")
         resultado.append({
             "codigo_nrc": nrc,
+            "codigo_ramo": cfg.get("codigo_ramo"),  # código de la asignatura (ej. 'ECIN-00026'); se usa para saber si el estudiante ya la aprobó, sin importar en qué NRC/sección la cursó
             "nombre_ramo": ramo_base.get("nombre", "Ramo sin nombre"),
             "departamento": "",  # dato no disponible en la BD actual
             "cupos": cfg.get("cupos"),
@@ -86,6 +87,96 @@ def obtener_ramos():
             "postulantes": conteo_postulantes.get(nrc, 0),
         })
     return resultado
+
+
+# --- NOTAS DEL ESTUDIANTE (las usa estudiante.js para saber a qué puede postular) ---
+
+def _normalizar_nombre(nombre):
+    """MAYÚSCULAS + espacios colapsados a uno solo, para poder comparar
+    nombres de ramo que vienen de fuentes distintas (notas_api vs ramos)
+    sin que un espacio de más o una minúscula rompa el match."""
+    if not nombre:
+        return nombre
+    return " ".join(nombre.strip().upper().split())
+
+
+@app.get("/api/estudiantes/{rut}/notas")
+def obtener_notas_estudiante(rut: str):
+    """Devuelve las notas reales del estudiante (tabla notas_api), indexadas
+    por NOMBRE DE ASIGNATURA normalizado (no por código ni por NRC): el
+    código de una asignatura cambia según el año/periodo en que se dicta,
+    pero el nombre se mantiene, así que es la única clave estable para saber
+    si el estudiante ya aprobó ese ramo, sin importar cuándo lo cursó.
+    Si el estudiante cursó la misma asignatura más de una vez, se deja la
+    nota más alta."""
+    try:
+        resp = supabase.table("notas_api").select("nombre, nota").eq("rut_estudiante", rut).execute()
+        notas_por_nombre: dict = {}
+        for n in resp.data:
+            nombre = _normalizar_nombre(n.get("nombre"))
+            nota = n.get("nota")
+            if nombre is None or nota is None:
+                continue
+            if nombre not in notas_por_nombre or nota > notas_por_nombre[nombre]:
+                notas_por_nombre[nombre] = nota
+        return notas_por_nombre
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# --- ADMIN: HABILITAR/CONFIGURAR AYUDANTÍA DE UN RAMO ---
+
+class ConfigurarRamo(BaseModel):
+    codigo_ramo: str      # código del catálogo (tabla 'ramos', ej. 'ECIN-00026')
+    nrc: str               # NRC de la sección/paralelo específico
+    rut_profesor: str | None = None
+    cupos: int = 1
+    esta_abierto: bool = True
+
+
+@app.post("/api/admin/ramos/configurar")
+def configurar_ramo(datos: ConfigurarRamo):
+    """El admin habilita (o edita) la ayudantía de un NRC. Si el NRC ya tiene
+    configuración, la actualiza; si no, la crea.
+    Nota: se hace select + insert/update a mano (en vez de upsert con
+    on_conflict) porque la tabla 'configuracion_ayudantias' no tiene una
+    restricción UNIQUE sobre 'nrc' a nivel de base de datos."""
+    try:
+        existe_ramo = supabase.table("ramos").select("codigo").eq("codigo", datos.codigo_ramo).execute()
+        if not existe_ramo.data:
+            raise HTTPException(status_code=404, detail="El código de ramo no existe en el catálogo 'ramos'.")
+
+        payload = {
+            "codigo_ramo": datos.codigo_ramo,
+            "nrc": datos.nrc,
+            "rut_profesor": datos.rut_profesor,
+            "cupos": datos.cupos,
+            "esta_abierto": datos.esta_abierto,
+        }
+
+        existe_config = supabase.table("configuracion_ayudantias").select("id").eq("nrc", datos.nrc).execute()
+        if existe_config.data:
+            supabase.table("configuracion_ayudantias").update(payload).eq("nrc", datos.nrc).execute()
+        else:
+            supabase.table("configuracion_ayudantias").insert(payload).execute()
+
+        return {"mensaje": "Ramo configurado correctamente."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.put("/api/admin/ramos/{nrc}/estado")
+def cambiar_estado_ramo(nrc: str, esta_abierto: bool):
+    """Abre/cierra rápidamente la ayudantía de un NRC ya configurado."""
+    try:
+        supabase.table("configuracion_ayudantias").update(
+            {"esta_abierto": esta_abierto}
+        ).eq("nrc", nrc).execute()
+        return {"mensaje": "Estado actualizado correctamente."}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # --- POSTULACIONES (estudiante) ---

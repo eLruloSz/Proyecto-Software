@@ -92,27 +92,31 @@
       <h2>Postular a Ayudantía</h2>
 
       <form id="formPostulacion">
-        <div class="form-group">
-          <label>Asignatura:</label>
-          <input type="text" id="postulacionAsignatura" readonly>
+        <div class="resumen-postulacion">
+          <div class="form-group">
+            <label>Asignatura</label>
+            <input type="text" id="postulacionAsignatura" class="form-input" readonly>
+          </div>
+
+          <div class="form-group resumen-mitad">
+            <label>NRC</label>
+            <input type="text" id="postulacionNrc" class="form-input" readonly>
+          </div>
+
+          <div class="form-group resumen-mitad">
+            <label>Tu nota histórica</label>
+            <input type="number" id="postulacionNota" class="form-input" step="0.1" readonly>
+          </div>
         </div>
 
         <div class="form-group">
-          <label>NRC:</label>
-          <input type="text" id="postulacionNrc" readonly>
+          <label for="postulacionMotivacion">¿Por qué quieres ser ayudante? <span style="font-weight:400; color:var(--muted);">(Opcional)</span></label>
+          <textarea id="postulacionMotivacion" class="form-input" rows="4" placeholder="Escribe tu motivación aquí..."></textarea>
         </div>
 
-        <div class="form-group">
-          <label>Tu Nota Histórica:</label>
-          <input type="number" id="postulacionNota" step="0.1" readonly>
-        </div>
-
-        <div class="form-group">
-          <label for="postulacionMotivacion">¿Por qué quieres ser ayudante? (Opcional)</label>
-          <textarea id="postulacionMotivacion" rows="4" placeholder="Escribe tu motivación aquí..."></textarea>
-        </div>
-
-        <button type="submit" class="btn-principal">Enviar Postulación</button>
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-paper-plane"></i> Enviar Postulación
+        </button>
       </form>
     </div>
   </div>
@@ -120,7 +124,6 @@
   <!-- TOASTS -->
   <div class="toast-container" id="toastContainer"></div>
 
-  <script src="js/dataStudents.js" defer></script>
   <script src="js/common.js" defer></script>
   <script src="js/estudiante.js" defer></script>
 
