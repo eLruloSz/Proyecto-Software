@@ -285,7 +285,7 @@ def actualizar_estado(datos: ActualizarEstado):
             .single()
             .execute()
         )
-    except APIError:
+    except Exception:
         raise HTTPException(404, "Postulación no encontrada")
 
     estado_anterior = post.data["estado"]
@@ -300,7 +300,7 @@ def actualizar_estado(datos: ActualizarEstado):
             .single()
             .execute()
         )
-    except APIError:
+    except Exception:
         raise HTTPException(404, "Configuración no encontrada")
 
     cupos = config.data["cupos"]
@@ -346,7 +346,7 @@ def retirar_postulacion(nrc_ramo: str, rut_estudiante: str):
             .single()
             .execute()
         )
-    except APIError:
+    except Exception:
         raise HTTPException(404, "Postulación no encontrada")
 
     estaba_aceptado = post.data["estado"] == "aceptado"
@@ -373,7 +373,7 @@ def retirar_postulacion(nrc_ramo: str, rut_estudiante: str):
             .single()
             .execute()
         )
-    except APIError:
+    except Exception:
         raise HTTPException(404, "Configuración de ayudantía no encontrada")
 
     cupos_actuales = config.data["cupos"]

@@ -80,15 +80,20 @@ async function fetchRamosYRenderizar() {
 
 async function fetchMisPostulaciones() {
   try {
-    const response = await fetch(`${API_URL}/api/postulaciones`);
+    // Usamos el endpoint específico que creaste en el backend, el cual ya trae
+    // la asignatura y el profesor correctos cruzados con la base de datos.
+    const response = await fetch(`${API_URL}/api/postulaciones/estudiante?rut_estudiante=${encodeURIComponent(studentData.rut)}`);
     if (!response.ok) throw new Error("Error al conectar con el servidor");
-    const todas = await response.json();
+    
+    const data = await response.json();
 
-    // El backend devuelve TODAS las postulaciones (las necesita el panel docente);
-    // acá nos quedamos solo con las del estudiante logueado.
-    appliedCourses = todas
-      .filter(p => p.rut_estudiante === studentData.rut)
-      .map(p => ({ code: p.nrc_ramo, status: p.estado }));
+    // Guardamos la data estructurada en la variable global que usan ambas vistas
+    appliedCourses = data.postulaciones.map(p => ({
+      code: p.nrc, 
+      status: p.estado,
+      name: p.asignatura,
+      prof: p.profesor
+    }));
 
     renderDashboardCourses();
     renderMyApplications();
@@ -218,48 +223,94 @@ function renderDashboardCourses() {
   }).join('');
 }
 
-async function withdrawApplication(code, name) {
+// 3. Mejoramos la función de retirar para que actualice la vista al instante
+/* =========================================================
+   LÓGICA DEL MODAL DE RETIRO DE POSTULACIÓN
+========================================================= */
+let retiroPendiente = null;
+
+function abrirModalRetiro(code, name) {
+  document.getElementById('confirmMessageEstudiante').innerHTML = `¿Estás seguro de que deseas retirar tu postulación a <strong style="color:var(--fg);">${name}</strong>?`;
+  document.getElementById('confirmModalEstudiante').classList.add('active');
+  retiroPendiente = { code, name };
+}
+
+function cerrarModalRetiro() {
+  document.getElementById('confirmModalEstudiante').classList.remove('active');
+  retiroPendiente = null;
+}
+
+// Permitir cerrar el modal al hacer clic afuera
+document.getElementById('confirmModalEstudiante')?.addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) cerrarModalRetiro();
+});
+
+// Evento al presionar el botón rojo de "Retirar" en el modal
+document.getElementById('confirmRetiroBtn')?.addEventListener('click', async () => {
+  if (!retiroPendiente) return;
+  
+  const { code, name } = retiroPendiente;
+  const btn = document.getElementById('confirmRetiroBtn');
+  const textoOriginal = btn.innerHTML;
+  
+  // Efecto de carga en el botón
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+  btn.disabled = true;
+
   try {
     const url = `${API_URL}/api/postulaciones?nrc_ramo=${encodeURIComponent(code)}&rut_estudiante=${encodeURIComponent(studentData.rut)}`;
     const response = await fetch(url, { method: 'DELETE' });
-    if (!response.ok) throw new Error("No se pudo retirar la postulación en el servidor");
+    
+    if (!response.ok) throw new Error("No se pudo retirar la postulación");
 
+    // Quitar del array local y recargar las interfaces
     appliedCourses = appliedCourses.filter(app => app.code !== code);
     renderDashboardCourses();
     renderMyApplications();
-    showToast(`Has retirado tu postulación a ${name} correctamente.`, 'info');
+    
+    showToast(`Postulación a ${name} retirada exitosamente.`, 'success');
   } catch (error) {
     console.error(error);
-    showToast('No se pudo retirar la postulación. Intenta de nuevo.', 'error');
+    showToast('Error de conexión con el servidor. Intenta de nuevo.', 'error');
+  } finally {
+    // Restaurar estado del botón y cerrar modal
+    btn.innerHTML = textoOriginal;
+    btn.disabled = false;
+    cerrarModalRetiro();
   }
-}
+});
 
 function renderMyApplications() {
   const tbody = document.getElementById('tablePostulaciones');
+  
+  // Como ahora la tabla mostrará todo perfecto, ocultamos las tarjetas duplicadas de arriba
+  const contenedorTarjetas = document.getElementById("misPostulacionesContainer");
+  if (contenedorTarjetas) contenedorTarjetas.style.display = 'none';
+
   if (appliedCourses.length === 0) {
     tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:2rem;">No tienes postulaciones activas.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = appliedCourses.map(app => {
-    const course = coursesData.find(c => c.codigo_nrc === app.code);
     const statusConfig = {
       'revision': { text: 'En revisión', class: 'revision', icon: 'fa-clock' },
       'aceptado': { text: 'Aprobado', class: 'aceptado', icon: 'fa-check-circle' },
       'rechazado': { text: 'Rechazado', class: 'rechazado', icon: 'fa-times-circle' }
     };
-    const s = statusConfig[app.status];
+    
+    const s = statusConfig[app.status] || statusConfig['revision'];
     const canWithdraw = app.status === 'revision';
 
     return `
       <tr>
         <td style="font-weight:700; color:var(--accent);">${app.code}</td>
-        <td>${course ? course.nombre_ramo : 'Desconocida'}</td>
-        <td>${course ? (course.id_profesor_encargado || 'Por asignar') : 'Desconocido'}</td>
+        <td style="font-weight:600;">${app.name}</td>
+        <td>${app.prof}</td>
         <td><span class="status-badge ${s.class}"><i class="fas ${s.icon}"></i> ${s.text}</span></td>
         <td>
           ${canWithdraw ? `
-            <button class="btn btn-ghost" style="padding: 6px 12px; font-size: 0.8rem; color: var(--danger); border-color: var(--danger);" onclick="withdrawApplication('${app.code}', '${course ? course.nombre_ramo : ''}')">
+            <button class="btn btn-ghost" style="padding: 6px 12px; font-size: 0.8rem; color: var(--danger); border-color: var(--danger);" onclick="abrirModalRetiro('${app.code}', '${app.name}')">
               <i class="fas fa-times"></i> Retirar
             </button>
           ` : '<span style="color:var(--muted); font-size:0.8rem;">--</span>'}
@@ -326,48 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function cargarMisPostulaciones() {
-  // Usamos el RUT global del estudiante ya validado
-  const rut = studentData.rut; 
-  const contenedor = document.getElementById("misPostulacionesContainer");
-
-  // Si por alguna razón no hay RUT, avisamos sin romper la página
-  if (!rut) {
-    contenedor.innerHTML = `<p class="error-state" style="color: var(--danger);">Error: Sesión inválida. Por favor cierra sesión y vuelve a ingresar.</p>`;
-    return;
-  }
-
-  try {
-    // Usamos encodeURIComponent para enviar el RUT de forma segura en la URL
-    const res = await fetch(`${API_URL}/api/postulaciones/estudiante?rut_estudiante=${encodeURIComponent(rut)}`);
-    if (!res.ok) throw new Error("No se pudieron cargar las postulaciones");
-
-    const { postulaciones } = await res.json();
-
-    if (postulaciones.length === 0) {
-      contenedor.innerHTML = `<p class="empty-state" style="color: var(--muted);">Aún no tienes postulaciones.</p>`;
-      return;
-    }
-
-    contenedor.innerHTML = postulaciones.map(p => `
-      <div class="postulacion-card" style="background: var(--card); border: 1px solid var(--border); padding: 1rem; border-radius: var(--radius-sm); margin-bottom: 1rem;">
-        <div class="postulacion-info">
-          <h4 style="color: var(--fg); margin-bottom: 5px;">${p.asignatura}</h4>
-          <p class="profesor" style="color: var(--muted); font-size: 0.9rem;">
-            <i class="fas fa-chalkboard-teacher"></i> Profesor: ${p.profesor}
-          </p>
-        </div>
-        <div style="margin-top: 10px;">
-          <span class="status-badge ${p.estado === 'revision' ? 'revision' : p.estado === 'aceptado' ? 'aceptado' : 'rechazado'}">
-            ${formatearEstado(p.estado)}
-          </span>
-        </div>
-      </div>
-    `).join("");
-
-  } catch (err) {
-    console.error(err);
-    contenedor.innerHTML = `<p class="error-state" style="color: var(--danger);">Error al cargar tus postulaciones.</p>`;
-  }
+  return;
 }
 
 function formatearEstado(estado) {
