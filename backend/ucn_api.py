@@ -1,5 +1,8 @@
-import httpx
 import os
+from typing import Any, Dict, List
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+import httpx
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,35 +15,258 @@ URL_ASIGNATURAS = os.getenv("UCN_URL_ASIGNATURAS")
 URL_PROFESORES = os.getenv("UCN_URL_PROFESORES")
 
 
-async def obtener_todos_los_estudiantes():
-    """POST a estudiantes. USA HEADER PERSONALIZADO."""
-    # Armamos el header exacto como la UCN lo pide
-    headers = {
-        UCN_HEADER_NAME: UCN_TOKEN, 
-        "Content-Type": "application/json"
+def _validar_config_ucn():
+    if not UCN_TOKEN:
+        raise RuntimeError("Falta UCN_TOKEN en el archivo .env")
+
+    if not UCN_HEADER_NAME:
+        raise RuntimeError("Falta UCN_HEADER_AUTH en el archivo .env")
+
+
+def _headers_ucn() -> Dict[str, str]:
+    _validar_config_ucn()
+
+    return {
+        "Accept": "*/*",
+        "Content-Type": "application/json",
+        "User-Agent": "Thunder Client (https://www.thunderclient.com)",
+        UCN_HEADER_NAME: UCN_TOKEN,
     }
-    
-    async with httpx.AsyncClient() as client:
-        response = await client.post(URL_ESTUDIANTES, headers=headers, json={})
-        response.raise_for_status()
-        return response.json()
+
+
+def _enmascarar_headers(headers: Dict[str, str]) -> Dict[str, str]:
+    headers_enmascarados = {}
+
+    for key, value in headers.items():
+        key_lower = key.lower()
+
+        if key_lower in {"authorization", "cookie"} or key == UCN_HEADER_NAME:
+            headers_enmascarados[key] = f"<masked len={len(value)}>"
+        else:
+            headers_enmascarados[key] = value
+
+    return headers_enmascarados
+
+
+def _enmascarar_url(url: str) -> str:
+    partes = urlsplit(url)
+    query_params = []
+
+    for key, value in parse_qsl(partes.query, keep_blank_values=True):
+        if key.lower() in {"token", "auth", "apikey", "api_key"}:
+            query_params.append((key, "<masked>"))
+        else:
+            query_params.append((key, value))
+
+    return urlunsplit(
+        (
+            partes.scheme,
+            partes.netloc,
+            partes.path,
+            urlencode(query_params),
+            partes.fragment,
+        )
+    )
+
+
+def _agregar_url_unica(urls: List[str], url: str) -> None:
+    if url not in urls:
+        urls.append(url)
+
+
+def _url_con_period_param(base: str, periodo: str, asegurar_slash: bool) -> str:
+    partes = urlsplit(base)
+    path = partes.path
+
+    if asegurar_slash and not path.endswith("/"):
+        path = f"{path}/"
+
+    query_params = [
+        (key, value)
+        for key, value in parse_qsl(partes.query, keep_blank_values=True)
+        if key and key != "period"
+    ]
+    query_params.append(("period", periodo))
+
+    return urlunsplit(
+        (
+            partes.scheme,
+            partes.netloc,
+            path,
+            urlencode(query_params),
+            partes.fragment,
+        )
+    )
+
+
+def _url_con_period_legacy(base: str, periodo: str, asegurar_slash: bool) -> str:
+    partes = urlsplit(base)
+    path = partes.path
+
+    if asegurar_slash and not path.endswith("/"):
+        path = f"{path}/"
+
+    return urlunsplit((partes.scheme, partes.netloc, path, periodo, partes.fragment))
+
+
+def _construir_urls_estudiantes(periodo: str) -> List[str]:
+
+    base = (URL_ESTUDIANTES or "https://losvilos.ucn.cl/hawaii/api/estudiantes-periodo-a").strip()
+    urls: List[str] = []
+
+    if "{periodo}" in base:
+        _agregar_url_unica(urls, base.format(periodo=periodo))
+        return urls
+
+    _agregar_url_unica(urls, _url_con_period_param(base, periodo, asegurar_slash=True))
+    _agregar_url_unica(urls, _url_con_period_param(base, periodo, asegurar_slash=False))
+    _agregar_url_unica(urls, _url_con_period_legacy(base, periodo, asegurar_slash=False))
+    _agregar_url_unica(urls, _url_con_period_legacy(base, periodo, asegurar_slash=True))
+
+    return urls
+
+
+def _construir_url_estudiantes(periodo: str) -> str:
+    return _construir_urls_estudiantes(periodo)[0]
+
+
+def _normalizar_lista_estudiantes(data: Any) -> List[Dict[str, Any]]:
+
+    if isinstance(data, list):
+        return data
+
+    if isinstance(data, dict):
+        if isinstance(data.get("estudiantes"), list):
+            return data["estudiantes"]
+
+        if isinstance(data.get("data"), list):
+            return data["data"]
+
+        if data.get("rut"):
+            return [data]
+
+    raise RuntimeError("La respuesta de estudiantes no tiene el formato esperado.")
+
+
+async def obtener_todos_los_estudiantes(periodo: str = "202520") -> List[Dict[str, Any]]:
+    urls = _construir_urls_estudiantes(periodo)
+
+    timeout = httpx.Timeout(60.0, connect=15.0)
+    errores = []
+    respuesta_vacia = False
+
+    async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+        for url in urls:
+            response = await client.post(
+                url,
+                headers=_headers_ucn(),
+                json={},
+            )
+
+            try:
+                response.raise_for_status()
+                data = response.json()
+                estudiantes = _normalizar_lista_estudiantes(data)
+            except Exception as e:
+                errores.append(
+                    f"{_enmascarar_url(url)} -> status {response.status_code}: {response.text[:300]} ({str(e)})"
+                )
+                continue
+
+            if estudiantes:
+                return estudiantes
+
+            respuesta_vacia = True
+
+    if respuesta_vacia:
+        raise RuntimeError(
+            "La API UCN respondio 200 OK, pero devolvio 0 estudiantes para todos los formatos de URL probados."
+        )
+
+    raise RuntimeError(
+        "No se pudo obtener estudiantes desde UCN. "
+        f"Errores: {' | '.join(errores)}"
+    )
+
+
+async def diagnosticar_estudiantes(periodo: str = "202520") -> Dict[str, Any]:
+    urls = _construir_urls_estudiantes(periodo)
+    headers = _headers_ucn()
+    timeout = httpx.Timeout(60.0, connect=15.0)
+    resultados = []
+
+    async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+        for url in urls:
+            response = await client.post(url, headers=headers, json={})
+
+            try:
+                data = response.json()
+                tipo = type(data).__name__
+                estudiantes = _normalizar_lista_estudiantes(data)
+                longitud = len(estudiantes)
+                primer_elemento = estudiantes[0] if estudiantes else None
+                texto_crudo = None
+            except ValueError:
+                tipo = "no_json"
+                longitud = None
+                primer_elemento = None
+                texto_crudo = response.text[:500]
+            except RuntimeError:
+                tipo = "json_formato_no_soportado"
+                longitud = None
+                primer_elemento = None
+                texto_crudo = response.text[:500]
+
+            resultados.append(
+                {
+                    "url_final": _enmascarar_url(str(response.url)),
+                    "status": response.status_code,
+                    "tipo_de_dato": tipo,
+                    "longitud": longitud,
+                    "primer_elemento": primer_elemento,
+                    "texto_crudo": texto_crudo,
+                    "redirects": [
+                        {
+                            "status": redirect.status_code,
+                            "url": str(redirect.url),
+                            "location": redirect.headers.get("location"),
+                        }
+                        for redirect in response.history
+                    ],
+                }
+            )
+
+    return {
+        "headers_enviados": _enmascarar_headers(headers),
+        "resultados": resultados,
+        "mejor_resultado": next(
+            (resultado for resultado in resultados if (resultado.get("longitud") or 0) > 0),
+            resultados[0] if resultados else None,
+        ),
+    }
 
 
 async def obtener_catalogo_asignaturas():
-    """GET a asignaturas. NO USA HEADER, el token está en la URL."""
-    async with httpx.AsyncClient() as client:
-        # A httpx no le pasamos headers, la URL ya tiene todo
+    """
+    GET a asignaturas.
+    Se mantiene como lo tenías, porque dijiste que ramos ya se rellena bien.
+    """
+    if not URL_ASIGNATURAS:
+        raise RuntimeError("Falta UCN_URL_ASIGNATURAS en el archivo .env")
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.get(URL_ASIGNATURAS)
         response.raise_for_status()
         return response.json()
 
 
 async def obtener_ramos_profesor(rut_profesor: str):
-    """GET a profesores. NO USA HEADER, el token está en la URL."""
-    # Le concatenamos el rut a la URL que ya tiene token y periodo
+    if not URL_PROFESORES:
+        raise RuntimeError("Falta UCN_URL_PROFESORES en el archivo .env")
+
     url_final = f"{URL_PROFESORES}&rut={rut_profesor}"
-    
-    async with httpx.AsyncClient() as client:
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.get(url_final)
         response.raise_for_status()
         return response.json()

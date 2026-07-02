@@ -16,23 +16,17 @@ app = FastAPI(title="Sistema Ayudantías UCN")
 @app.get("/debug/env")
 def debug_env():
     return {
-        "ESTUDIANTES": os.getenv("UCN_URL_ESTUDIANTES"),
-        "ASIGNATURAS": os.getenv("UCN_URL_ASIGNATURAS"),
-        "PROFESORES": os.getenv("UCN_URL_PROFESORES"),
-        "TOKEN": os.getenv("UCN_TOKEN"),
-        "HEADER": os.getenv("UCN_HEADER_AUTH")
+        "ESTUDIANTES_CONFIGURADO": bool(os.getenv("UCN_URL_ESTUDIANTES")),
+        "ASIGNATURAS_CONFIGURADO": bool(os.getenv("UCN_URL_ASIGNATURAS")),
+        "PROFESORES_CONFIGURADO": bool(os.getenv("UCN_URL_PROFESORES")),
+        "TOKEN_CONFIGURADO": bool(os.getenv("UCN_TOKEN")),
+        "HEADER_CONFIGURADO": bool(os.getenv("UCN_HEADER_AUTH")),
     }
 
 @app.get("/debug/ucn-estudiantes")
-async def debug_ucn_estudiantes():
-    import ucn_api
+async def debug_ucn_estudiantes(periodo: str = "202520"):
     try:
-        datos = await ucn_api.obtener_todos_los_estudiantes()
-        return {
-            "tipo_de_dato": str(type(datos)),
-            "longitud": len(datos) if isinstance(datos, list) else "No es una lista",
-            "primer_elemento": datos[0] if isinstance(datos, list) and len(datos) > 0 else "Vacío o formato inesperado"
-        }
+        return await ucn_api.diagnosticar_estudiantes(periodo)
     except Exception as e:
         return {"error": str(e)}
 
@@ -52,128 +46,251 @@ class LoginData(BaseModel):
 class ActivarData(BaseModel):
     rut: str
     nueva_password: str
+    rol: str  # "estudiante" o "profesor"
+
+class PostulacionData(BaseModel):
+    nrc: str
 
 # --- ENDPOINTS DE AUTENTICACIÓN ---
 
+# --- ENDPOINTS DE AUTENTICACIÓN (UNIFICADO) ---
+
 @app.post("/api/auth/login")
-def login(data: LoginData):
-    # 1. Buscar alumno en Supabase
-    response = supabase.table("estudiantes").select("*").eq("rut", data.rut).execute()
+async def login(data: LoginData):
+    # 1. Intentamos buscarlo como ESTUDIANTE
+    resp_est = supabase.table("estudiantes").select("*").eq("rut", data.rut).execute()
     
-    if not response.data:
-        raise HTTPException(status_code=404, detail="RUT no encontrado en el periodo activo.")
-    
-    alumno = response.data[0]
+    if resp_est.data:
+        alumno = resp_est.data[0]
+        if not alumno.get("password_hash"):
+            raise HTTPException(status_code=403, detail="NEEDS_ACTIVATION_STUDENT")
+        if not pwd_context.verify(data.password, alumno["password_hash"]):
+            raise HTTPException(status_code=401, detail="Contraseña incorrecta.")
+        alumno.pop("password_hash", None)
+        return {"message": "Login exitoso", "user": alumno, "rol": "estudiante"}
 
-    # 2. Verificar si ya activó su cuenta (tiene contraseña)
-    if not alumno.get("password_hash"):
-        raise HTTPException(status_code=403, detail="NEEDS_ACTIVATION") # Señal especial para el frontend
+    # 2. Si no es estudiante, intentamos como PROFESOR
+    resp_prof = supabase.table("profesores").select("*").eq("rut", data.rut).execute()
     
-    # 3. Verificar contraseña
-    if not pwd_context.verify(data.password, alumno["password_hash"]):
-        raise HTTPException(status_code=401, detail="Contraseña incorrecta.")
+    if resp_prof.data:
+        prof = resp_prof.data[0]
+        if not prof.get("password_hash"):
+            raise HTTPException(status_code=403, detail="NEEDS_ACTIVATION_PROFESSOR")
+        if not pwd_context.verify(data.password, prof["password_hash"]):
+            raise HTTPException(status_code=401, detail="Contraseña incorrecta.")
+        prof.pop("password_hash", None)
+        return {"message": "Login exitoso", "user": prof, "rol": "profesor"}
 
-    # 4. Login exitoso (No enviamos el password_hash al frontend por seguridad)
-    alumno.pop("password_hash", None)
-    return {"message": "Login exitoso", "user": alumno}
+    # 3. No está en ninguna tabla. ¿Es un profe de la UCN que entra por primera vez?
+    try:
+        datos_ucn = await ucn_api.obtener_ramos_profesor(data.rut)
+        if datos_ucn and datos_ucn.get("nombre"):
+            # Lo registramos automáticamente en la BD
+            supabase.table("profesores").insert({"rut": data.rut, "nombre": datos_ucn["nombre"]}).execute()
+            raise HTTPException(status_code=403, detail="NEEDS_ACTIVATION_PROFESSOR")
+        else:
+            raise HTTPException(status_code=404, detail="RUT no encontrado en registros UCN.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al validar RUT con la UCN: {str(e)}")
+
 
 @app.post("/api/auth/activar")
 def activar_cuenta(data: ActivarData):
-    # Verificar que el RUT existe
-    response = supabase.table("estudiantes").select("rut").eq("rut", data.rut).execute()
+    tabla = "estudiantes" if data.rol == "estudiante" else "profesores"
+    
+    response = supabase.table(tabla).select("rut").eq("rut", data.rut).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="RUT no válido.")
     
     if len(data.nueva_password) < 6:
         raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 6 caracteres.")
 
-    # Encriptar y guardar
     hash_guardado = pwd_context.hash(data.nueva_password)
-    
-    supabase.table("estudiantes").update({"password_hash": hash_guardado}).eq("rut", data.rut).execute()
+    supabase.table(tabla).update({"password_hash": hash_guardado}).eq("rut", data.rut).execute()
     
     return {"message": "Cuenta activada correctamente. Ya puedes iniciar sesión."}
 
-
 # --- ENDPOINT DE SINCRONIZACIÓN (ADMIN) ---
+class SincronizarData(BaseModel):
+    periodo: str = "202520"
+
 
 @app.post("/api/admin/sincronizar")
-async def sincronizar_ucn():
+async def sincronizar_ucn(data: SincronizarData = SincronizarData()):
     resultados = {"estudiantes": 0, "notas": 0, "asignaturas": 0, "errores": []}
-    
+
     try:
-        # 1. Traer asignaturas (Catálogo general)
+        # 1. Traer asignaturas, se mantiene porque ramos ya funciona
         asignaturas = await ucn_api.obtener_catalogo_asignaturas()
+
         for a in asignaturas:
-            supabase.table("ramos").upsert({"codigo": a["codigo"], "nombre": a["nombre"]}, on_conflict="codigo").execute()
+            supabase.table("ramos").upsert(
+                {
+                    "codigo": a["codigo"],
+                    "nombre": a["nombre"]
+                },
+                on_conflict="codigo"
+            ).execute()
+
             resultados["asignaturas"] += 1
 
-        # 2. Traer la lista gigante de estudiantes
-        estudiantes_ucn = await ucn_api.obtener_todos_los_estudiantes()
-        
+        # 2. Traer estudiantes del periodo
+        estudiantes_ucn = await ucn_api.obtener_todos_los_estudiantes(data.periodo)
+
         for est in estudiantes_ucn:
             try:
-                rut = est["rut"]
-                # Upsert del estudiante (sin sobreescribir la contraseña si ya la creó)
+                rut = est.get("rut")
+
+                if not rut:
+                    resultados["errores"].append("Estudiante sin RUT recibido desde API UCN.")
+                    continue
+
+                carrera_data = est.get("carrera")
+
+                if isinstance(carrera_data, dict):
+                    carrera_nombre = carrera_data.get("nombre", "Sin carrera")
+                else:
+                    carrera_nombre = carrera_data or "Sin carrera"
+
+                # 3. Guardar o actualizar estudiante
                 supabase.table("estudiantes").upsert(
                     {
                         "rut": rut,
-                        "nombre": est["nombre"],
-                        "correo": est["correo"],
-                        "ppa": est["ppa"],
-                        "carrera": est.get("carrera", {}).get("nombre", "Sin carrera")
-                    }, 
+                        "nombre": est.get("nombre"),
+                        "correo": est.get("correo"),
+                        "ppa": est.get("ppa"),
+                        "carrera": carrera_nombre,
+                    },
                     on_conflict="rut"
                 ).execute()
+
                 resultados["estudiantes"] += 1
 
-                # Guardar sus notas aprobadas
+                # 4. Guardar notas aprobadas
                 for nota in est.get("asignaturasAprobadas", []):
+                    nrc = nota.get("nrc")
+                    periodo_nota = nota.get("periodo") or data.periodo
+
+                    if not nrc or not periodo_nota:
+                        resultados["errores"].append(
+                            f"Nota sin NRC o periodo para RUT {rut}."
+                        )
+                        continue
+
                     supabase.table("notas_api").upsert(
                         {
                             "rut_estudiante": rut,
-                            "nrc": nota["nrc"],
-                            "codigo": nota["codigo"],
-                            "nombre": nota["nombre"],
-                            "nota": nota["nota"],
-                            "periodo": nota["periodo"]
+                            "nrc": nrc,
+                            "codigo": nota.get("codigo"),
+                            "nombre": nota.get("nombre"),
+                            "nota": nota.get("nota"),
+                            "periodo": periodo_nota,
                         },
-                        on_conflict="rut_estudiante,nrc,periodo" # Evita duplicados exactos
+                        on_conflict="rut_estudiante,nrc,periodo"
                     ).execute()
+
                     resultados["notas"] += 1
 
             except Exception as e:
-                resultados["errores"].append(f"Error procesando RUT {est.get('rut', 'Desconocido')}: {str(e)}")
+                resultados["errores"].append(
+                    f"Error procesando RUT {est.get('rut', 'Desconocido')}: {str(e)}"
+                )
 
-        return {"message": "Sincronización completada", "data": resultados}
+        return {
+            "message": "SincronizaciÃ³n completada",
+            "periodo": data.periodo,
+            "data": resultados
+        }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al conectar con la UCN: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al sincronizar datos UCN: {str(e)}"
+        )
 
 
 # --- ENDPOINTS DEL ESTUDIANTE (Con datos reales) ---
 
+# --- ENDPOINTS DEL ESTUDIANTE (Postulaciones reales) ---
+
+@app.post("/api/estudiante/{rut}/postular")
+def crear_postulacion(rut: str, data: PostulacionData):
+    # 1. Verificar que el NRC existe y está abierto en la configuración
+    config = supabase.table("configuracion_ayudantias").select("*, ramos(codigo, nombre)").eq("nrc", data.nrc).eq("esta_abierto", True).execute()
+    if not config.data:
+        raise HTTPException(status_code=404, detail="La ayudantía no existe o no está abierta.")
+    
+    ramo_config = config.data[0]
+    codigo_ramo = ramo_config["codigo_ramo"]
+
+    # 2. Verificar que el alumno aprobó el ramo (nota >= 4.0)
+    nota = supabase.table("notas_api").select("nota").eq("rut_estudiante", rut).eq("codigo", codigo_ramo).gte("nota", 4.0).execute()
+    if not nota.data:
+        raise HTTPException(status_code=403, detail="No cumples con los requisitos (nota < 4.0) para postular a este ramo.")
+
+    # 3. Verificar si ya postuló a este NRC
+    ya_postulo = supabase.table("postulaciones").select("id").eq("rut_estudiante", rut).eq("nrc", data.nrc).eq("estado", "revision").execute()
+    if ya_postulo.data:
+        raise HTTPException(status_code=400, detail="Ya tienes una postulación activa para este NRC.")
+
+    # 4. Crear postulación
+    supabase.table("postulaciones").insert({
+        "rut_estudiante": rut,
+        "nrc": data.nrc,
+        "estado": "revision"
+    }).execute()
+
+    return {"message": f"Postulación a {ramo_config['ramos']['nombre']} (NRC {data.nrc}) realizada con éxito."}
+
+
+@app.delete("/api/estudiante/{rut}/postular/{nrc}")
+def retirar_postulacion(rut: str, nrc: str):
+    resp = supabase.table("postulaciones").select("id, estado").eq("rut_estudiante", rut).eq("nrc", nrc).eq("estado", "revision").execute()
+    if not resp.data:
+        raise HTTPException(status_code=404, detail="No se encontró postulación activa para retirar.")
+    
+    supabase.table("postulaciones").update({"estado": "retirada"}).eq("id", resp.data[0]["id"]).execute()
+    return {"message": "Postulación retirada correctamente."}
+
+
+@app.get("/api/estudiante/{rut}/mis-postulaciones")
+def obtener_mis_postulaciones(rut: str):
+    # Usamos un join para traer el nombre del ramo desde la tabla configuracion_ayudantias
+    response = supabase.table("postulaciones").select("*, configuracion_ayudantias(codigo_ramo, ramos(nombre))").eq("rut_estudiante", rut).neq("estado", "retirada").execute()
+    return response.data
+
+
 @app.get("/api/estudiante/{rut}/ramos-disponibles")
 def obtener_ramos_para_postular(rut: str):
-    # 1. Traer solo las notas >= 4.0 de este alumno desde Supabase
+    # 1. Traer los códigos de ramos donde el alumno sacó >= 4.0
     response_notas = supabase.table("notas_api").select("codigo").eq("rut_estudiante", rut).gte("nota", 4.0).execute()
-    
     codigos_aprobados = [n["codigo"] for n in response_notas.data]
     
     if not codigos_aprobados:
         return []
 
-    # 2. Traer las ayudantías abiertas de la tabla de configuración
-    # (Aún no creamos esta tabla en Supabase, pero así será la consulta)
-    """
-    response_ayudantias = supabase.table("configuracion_ayudantias").select("*").in_("codigo_ramo", codigos_aprobados).eq("esta_abierto", True).execute()
+    response_ayudantias = supabase.table("configuracion_ayudantias").select("*, ramos(*)").in_("codigo_ramo", codigos_aprobados).eq("esta_abierto", True).execute()
     return response_ayudantias.data
-    """
-    # Mientras tanto, devolvemos los códigos para que el frontend sepa qué mostrar
-    return codigos_aprobados
 
 @app.get("/api/ramos")
 def obtener_ramos_publicos():
-    """El que usa tu landing page"""
+    """El que usa tu landing page - Mapeado al formato del HTML"""
     response = supabase.table("ramos").select("*").execute()
-    return response.data
+    
+    # Formateamos los datos para que calcen con lo que espera el HTML
+    formatted_data = []
+    for r in response.data:
+        formatted_data.append({
+            "codigo_nrc": r.get("codigo"),
+            "nombre_ramo": r.get("nombre"),
+            "departamento": r.get("departamento", "General"),
+            # Estos campos no están en la tabla 'ramos', están en 'configuracion_ayudantias'
+            "cupos": 0, 
+            "esta_abierto": False, 
+            "id_profesor_encargado": "Por asignar",
+            "postulantes": 0
+        })
+        
+    return formatted_data
