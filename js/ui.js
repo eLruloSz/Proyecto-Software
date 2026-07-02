@@ -208,6 +208,7 @@
       document.querySelector('.bg-grid').style.display = 'none';
       document.querySelector('#particleCanvas').style.display = 'none';
       document.getElementById('app-estudiante').style.display = 'block';
+      document.getElementById('perfilPPA').textContent = currentUser.ppa || 'No registrado';
       
       // Inyectar datos REALES del backend
       const initials = currentUser.nombre ? currentUser.nombre.split(' ').map(n => n[0]).join('') : '??';
