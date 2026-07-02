@@ -277,33 +277,128 @@ class ActualizarEstado(BaseModel):
 @app.put("/api/postulaciones/estado")
 def actualizar_estado(datos: ActualizarEstado):
     try:
-        supabase.table("postulaciones") \
-            .update({"estado": datos.nuevo_estado}) \
-            .eq("nrc", datos.nrc_ramo) \
-            .eq("rut_estudiante", datos.rut_estudiante) \
+        post = (
+            supabase.table("postulaciones")
+            .select("estado")
+            .eq("nrc", datos.nrc_ramo)
+            .eq("rut_estudiante", datos.rut_estudiante)
+            .single()
             .execute()
-        return {"mensaje": "Estado actualizado correctamente"}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        )
+    except APIError:
+        raise HTTPException(404, "Postulación no encontrada")
 
+    estado_anterior = post.data["estado"]
+    if estado_anterior == datos.nuevo_estado:
+        return {"mensaje": "El estado ya estaba actualizado"}
+
+    try:
+        config = (
+            supabase.table("configuracion_ayudantias")
+            .select("cupos")
+            .eq("nrc", datos.nrc_ramo)
+            .single()
+            .execute()
+        )
+    except APIError:
+        raise HTTPException(404, "Configuración no encontrada")
+
+    cupos = config.data["cupos"]
+    delta = 0
+    if estado_anterior != "aceptado" and datos.nuevo_estado == "aceptado":
+        delta = -1
+    elif estado_anterior == "aceptado" and datos.nuevo_estado != "aceptado":
+        delta = 1
+
+    nuevo_cupos = cupos + delta
+    if nuevo_cupos < 0:
+        raise HTTPException(400, "No hay cupos disponibles")
+
+    if delta != 0:
+        update_result = (
+            supabase.table("configuracion_ayudantias")
+            .update({"cupos": nuevo_cupos})
+            .eq("nrc", datos.nrc_ramo)
+            .eq("cupos", cupos)          # 👈 el candado: solo escribe si nadie más lo cambió
+            .execute()
+        )
+        if not update_result.data:
+            raise HTTPException(409, "Los cupos cambiaron justo antes de tu solicitud, intenta de nuevo")
+
+    (
+        supabase.table("postulaciones")
+        .update({"estado": datos.nuevo_estado})
+        .eq("nrc", datos.nrc_ramo)
+        .eq("rut_estudiante", datos.rut_estudiante)
+        .execute()
+    )
+
+    return {"mensaje": "Estado actualizado correctamente", "cupos_restantes": nuevo_cupos}
 
 @app.delete("/api/postulaciones")
 def retirar_postulacion(nrc_ramo: str, rut_estudiante: str):
     try:
-        existente = supabase.table("postulaciones").select("estado") \
-            .eq("nrc", nrc_ramo).eq("rut_estudiante", rut_estudiante).execute()
+        post = (
+            supabase.table("postulaciones")
+            .select("estado")
+            .eq("nrc", nrc_ramo)
+            .eq("rut_estudiante", rut_estudiante)
+            .single()
+            .execute()
+        )
+    except APIError:
+        raise HTTPException(404, "Postulación no encontrada")
 
-        if not existente.data:
-            raise HTTPException(status_code=404, detail="Postulación no encontrada")
-        if existente.data[0]["estado"] != "revision":
-            raise HTTPException(status_code=400, detail="Solo se pueden retirar postulaciones en revisión")
+    estaba_aceptado = post.data["estado"] == "aceptado"
 
-        supabase.table("postulaciones").delete().eq("nrc", nrc_ramo).eq("rut_estudiante", rut_estudiante).execute()
-        return {"mensaje": "Postulación retirada correctamente"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    # Borrar primero: es el "punto de no retorno". Si algo falla después,
+    # el peor caso es un cupo sin liberar (se corrige a mano), nunca un
+    # cupo duplicado por un reintento del cliente.
+    delete_result = (
+        supabase.table("postulaciones")
+        .delete()
+        .eq("nrc", nrc_ramo)
+        .eq("rut_estudiante", rut_estudiante)
+        .execute()
+    )
+
+    if not delete_result.data:
+        raise HTTPException(404, "Postulación no encontrada")
+
+    try:
+        config = (
+            supabase.table("configuracion_ayudantias")
+            .select("cupos")
+            .eq("nrc", nrc_ramo)
+            .single()
+            .execute()
+        )
+    except APIError:
+        raise HTTPException(404, "Configuración de ayudantía no encontrada")
+
+    cupos_actuales = config.data["cupos"]
+    cupos_restantes = cupos_actuales
+
+    if estaba_aceptado:
+        update_result = (
+            supabase.table("configuracion_ayudantias")
+            .update({"cupos": cupos_actuales + 1})
+            .eq("nrc", nrc_ramo)
+            .eq("cupos", cupos_actuales)   # candado optimista, igual que en el PUT
+            .execute()
+        )
+        if not update_result.data:
+            raise HTTPException(
+                409,
+                "La postulación se retiró, pero el cupo cambió justo antes de liberarlo. Revisa el conteo del ramo."
+            )
+        cupos_restantes = cupos_actuales + 1
+
+    return {
+        "mensaje": "Postulación retirada" + (" y cupo liberado" if estaba_aceptado else ""),
+        "cupo_liberado": estaba_aceptado,
+        "cupos_restantes": cupos_restantes,
+    }
 
 
 # --- UTILIDADES DE RUT ---
