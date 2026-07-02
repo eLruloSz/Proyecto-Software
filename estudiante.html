@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ayudantías UCN | Panel Estudiante</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;400;600;800;900&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+
+  <!-- APP COMPLETA ESTUDIANTE -->
+  <div id="app-estudiante" class="app-page" style="display:block;">
+
+    <!-- Cabecera Fija -->
+    <header class="app-header">
+      <div class="app-header-left">
+        <div class="brand-icon-sm"><i class="fas fa-graduation-cap"></i></div>
+        <span>Sistema de Ayudantías</span>
+      </div>
+      <div class="app-header-right">
+        <div class="app-user-pill">
+          <div class="app-avatar-sm" id="headerAvatar">JP</div>
+          <span id="headerName">Juan Pérez</span>
+        </div>
+        <button class="btn btn-ghost" style="padding: 8px 16px;" onclick="logout()">
+          <i class="fas fa-sign-out-alt"></i> Salir
+        </button>
+      </div>
+    </header>
+
+    <!-- Menú de Pestañas -->
+    <div class="app-tabs-container">
+      <div class="app-tabs">
+        <button class="app-tab active" onclick="switchView('disponibles', this)">Postular a Ayudantías</button>
+        <button class="app-tab" onclick="switchView('mis-postulaciones', this)">Mis Postulaciones</button>
+        <button class="app-tab" onclick="switchView('perfil', this)">Mi Perfil</button>
+      </div>
+    </div>
+
+    <!-- Contenido que cambia según el Tab -->
+    <div class="app-content">
+
+      <div id="view-disponibles" class="view-section active">
+        <div class="app-page-title">
+          <h1>Asignaturas Disponibles</h1>
+          <p>Postula solo a las asignaturas donde tu nota final es aprobada (≥ 4.0).</p>
+        </div>
+        <div class="available-courses-grid" id="dashCoursesGrid"></div>
+      </div>
+
+      <div id="view-mis-postulaciones" class="view-section">
+        <div class="app-page-title">
+          <h1>Estado de Mis Postulaciones</h1>
+          <p>Revisa si los profesores ya han revisado tu postulación.</p>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr><th>Código</th><th>Asignatura</th><th>Profesor</th><th>Estado</th><th>Acción</th></tr>
+            </thead>
+            <tbody id="tablePostulaciones"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="view-perfil" class="view-section">
+        <div class="app-page-title">
+          <h1>Mi Perfil Académico</h1>
+          <p>Información extraída automáticamente del sistema UCN.</p>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <tbody>
+              <tr><td style="color:var(--muted); width:250px;">Nombre Completo</td><td style="font-weight:600;" id="perfilNombre">Juan Pérez</td></tr>
+              <tr><td style="color:var(--muted);">RUT</td><td style="font-weight:600;" id="perfilRut">21.290.036-2</td></tr>
+              <tr><td style="color:var(--muted);">Correo</td><td style="font-weight:600;" id="perfilCorreo">juan.perez@alumnos.ucn.cl</td></tr>
+              <tr><td style="color:var(--muted);">PPA (Promedio Ponderado)</td><td style="font-weight:800; font-size:1.2rem; color:var(--accent-light);">5.4</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal de Postulación -->
+  <div id="modalPostulacion" class="modal-oculto" style="display: none;">
+    <div class="modal-contenido">
+      <span id="cerrarModalBtn" class="cerrar-btn">&times;</span>
+      <h2>Postular a Ayudantía</h2>
+
+      <form id="formPostulacion">
+        <div class="form-group">
+          <label>Asignatura:</label>
+          <input type="text" id="postulacionAsignatura" readonly>
+        </div>
+
+        <div class="form-group">
+          <label>NRC:</label>
+          <input type="text" id="postulacionNrc" readonly>
+        </div>
+
+        <div class="form-group">
+          <label>Tu Nota Histórica:</label>
+          <input type="number" id="postulacionNota" step="0.1" readonly>
+        </div>
+
+        <div class="form-group">
+          <label for="postulacionMotivacion">¿Por qué quieres ser ayudante? (Opcional)</label>
+          <textarea id="postulacionMotivacion" rows="4" placeholder="Escribe tu motivación aquí..."></textarea>
+        </div>
+
+        <button type="submit" class="btn-principal">Enviar Postulación</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOASTS -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="js/dataStudents.js" defer></script>
+  <script src="js/common.js" defer></script>
+  <script src="js/estudiante.js" defer></script>
+
+</body>
+</html>

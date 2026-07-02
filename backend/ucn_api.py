@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterable, List
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
@@ -13,6 +13,19 @@ UCN_HEADER_NAME = os.getenv("UCN_HEADER_AUTH")
 URL_ESTUDIANTES = os.getenv("UCN_URL_ESTUDIANTES")
 URL_ASIGNATURAS = os.getenv("UCN_URL_ASIGNATURAS")
 URL_PROFESORES = os.getenv("UCN_URL_PROFESORES")
+
+QUERY_KEYS_SENSIBLES = {
+    "token",
+    "auth",
+    "apikey",
+    "api_key",
+    "key",
+    "rut",
+    "password",
+    "pass",
+    "session",
+    "phpsessid",
+}
 
 
 def _validar_config_ucn():
@@ -40,7 +53,10 @@ def _enmascarar_headers(headers: Dict[str, str]) -> Dict[str, str]:
     for key, value in headers.items():
         key_lower = key.lower()
 
-        if key_lower in {"authorization", "cookie"} or key == UCN_HEADER_NAME:
+        if (
+            key_lower in {"authorization", "cookie"}
+            or (UCN_HEADER_NAME and key_lower == UCN_HEADER_NAME.lower())
+        ):
             headers_enmascarados[key] = f"<masked len={len(value)}>"
         else:
             headers_enmascarados[key] = value
@@ -53,10 +69,30 @@ def _enmascarar_url(url: str) -> str:
     query_params = []
 
     for key, value in parse_qsl(partes.query, keep_blank_values=True):
-        if key.lower() in {"token", "auth", "apikey", "api_key"}:
+        if key.lower() in QUERY_KEYS_SENSIBLES:
             query_params.append((key, "<masked>"))
         else:
             query_params.append((key, value))
+
+    return urlunsplit(
+        (
+            partes.scheme,
+            partes.netloc,
+            partes.path,
+            urlencode(query_params),
+            partes.fragment,
+        )
+    )
+
+
+def _url_sin_query_params(base: str, claves: Iterable[str]) -> str:
+    partes = urlsplit(base.strip())
+    claves_normalizadas = {clave.lower() for clave in claves}
+    query_params = [
+        (key, value)
+        for key, value in parse_qsl(partes.query, keep_blank_values=True)
+        if key and key.lower() not in claves_normalizadas
+    ]
 
     return urlunsplit(
         (
@@ -84,7 +120,7 @@ def _url_con_period_param(base: str, periodo: str, asegurar_slash: bool) -> str:
     query_params = [
         (key, value)
         for key, value in parse_qsl(partes.query, keep_blank_values=True)
-        if key and key != "period"
+        if key and key.lower() != "period"
     ]
     query_params.append(("period", periodo))
 
@@ -111,7 +147,7 @@ def _url_con_period_legacy(base: str, periodo: str, asegurar_slash: bool) -> str
 
 def _construir_urls_estudiantes(periodo: str) -> List[str]:
 
-    base = (URL_ESTUDIANTES or "https://losvilos.ucn.cl/hawaii/api/estudiantes-periodo-a").strip()
+    base = (URL_ESTUDIANTES).strip()
     urls: List[str] = []
 
     if "{periodo}" in base:
@@ -169,7 +205,7 @@ async def obtener_todos_los_estudiantes(periodo: str = "202520") -> List[Dict[st
                 estudiantes = _normalizar_lista_estudiantes(data)
             except Exception as e:
                 errores.append(
-                    f"{_enmascarar_url(url)} -> status {response.status_code}: {response.text[:300]} ({str(e)})"
+                    f"{_enmascarar_url(url)} -> status {response.status_code}: {response.text[:300]} ({type(e).__name__})"
                 )
                 continue
 
@@ -228,8 +264,8 @@ async def diagnosticar_estudiantes(periodo: str = "202520") -> Dict[str, Any]:
                     "redirects": [
                         {
                             "status": redirect.status_code,
-                            "url": str(redirect.url),
-                            "location": redirect.headers.get("location"),
+                            "url": _enmascarar_url(str(redirect.url)),
+                            "location": _enmascarar_url(redirect.headers.get("location", "")),
                         }
                         for redirect in response.history
                     ],
@@ -254,19 +290,42 @@ async def obtener_catalogo_asignaturas():
     if not URL_ASIGNATURAS:
         raise RuntimeError("Falta UCN_URL_ASIGNATURAS en el archivo .env")
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        response = await client.get(URL_ASIGNATURAS)
-        response.raise_for_status()
-        return response.json()
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.get(URL_ASIGNATURAS)
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPStatusError as e:
+        raise RuntimeError(
+            f"No fue posible obtener asignaturas desde UCN. Status {e.response.status_code}."
+        ) from e
+    except httpx.HTTPError as e:
+        raise RuntimeError("No fue posible conectar con el servicio UCN de asignaturas.") from e
 
 
 async def obtener_ramos_profesor(rut_profesor: str):
     if not URL_PROFESORES:
         raise RuntimeError("Falta UCN_URL_PROFESORES en el archivo .env")
 
-    url_final = f"{URL_PROFESORES}&rut={rut_profesor}"
+    rut_limpio = rut_profesor.strip()
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        response = await client.get(url_final)
-        response.raise_for_status()
-        return response.json()
+    if not rut_limpio:
+        raise RuntimeError("RUT de profesor requerido.")
+
+    url_base = _url_sin_query_params(URL_PROFESORES, {"rut"})
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.get(
+                url_base,
+                headers=_headers_ucn(),
+                params={"rut": rut_limpio},
+            )
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPStatusError as e:
+        raise RuntimeError(
+            f"No fue posible obtener ramos del profesor desde UCN. Status {e.response.status_code}."
+        ) from e
+    except httpx.HTTPError as e:
+        raise RuntimeError("No fue posible conectar con el servicio UCN de profesores.") from e
