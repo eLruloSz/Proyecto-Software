@@ -223,11 +223,6 @@ async function ejecutarCambioEstado(nrc, rut, nuevoEstado) {
   }
 }
 
-// ==============================================================
-// PEGA EL CÓDIGO NUEVO JUSTO AQUÍ, AL FINAL DEL ARCHIVO:
-// ==============================================================
-
-// --- NUEVA FUNCIÓN PARA EXPORTAR A EXCEL (CSV) ---
 function descargarReporteExcel() {
   if (datosGlobalesPostulaciones.length === 0) {
     showToast('No hay postulaciones para descargar.', 'info');

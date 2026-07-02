@@ -50,12 +50,15 @@ def root():
     return {"message": "API del Sistema de Ayudantías UCN funcionando correctamente"}
 
 
-# --- RAMOS ---
 @app.get("/api/ramos")
 def _construir_ramos(codigos_permitidos=None, rut_profesor: str | None = None):
     ramos_resp = supabase.table("ramos").select("*").execute()
     config_resp = supabase.table("configuracion_ayudantias").select("*").execute()
     postulaciones_resp = supabase.table("postulaciones").select("nrc, estado").execute()
+    
+    # NUEVO: Traer profesores para reemplazar el RUT por el nombre
+    profesores_resp = supabase.table("profesores").select("rut, nombre").execute()
+    profes_por_rut = {p["rut"]: p["nombre"] for p in profesores_resp.data}
 
     ramos_por_codigo = {r["codigo"]: r for r in ramos_resp.data}
 
@@ -73,6 +76,11 @@ def _construir_ramos(codigos_permitidos=None, rut_profesor: str | None = None):
             continue
         ramo_base = ramos_por_codigo.get(codigo_ramo, {})
         nrc = cfg.get("nrc")
+        rut_profe = cfg.get("rut_profesor")
+        
+        # NUEVO: Mapear RUT a Nombre
+        nombre_profe = profes_por_rut.get(rut_profe, "Por asignar") if rut_profe else "Por asignar"
+
         resultado.append({
             "codigo_nrc": nrc,
             "codigo_ramo": cfg.get("codigo_ramo"),
@@ -80,11 +88,10 @@ def _construir_ramos(codigos_permitidos=None, rut_profesor: str | None = None):
             "departamento": "",
             "cupos": cfg.get("cupos"),
             "esta_abierto": cfg.get("esta_abierto"),
-            "id_profesor_encargado": cfg.get("rut_profesor"),
+            "id_profesor_encargado": nombre_profe,  # AHORA MANDA EL NOMBRE AL FRONTEND
             "postulantes": conteo_postulantes.get(nrc, 0),
         })
     return resultado
-
 
 # --- NOTAS DEL ESTUDIANTE (las usa estudiante.js para saber a qué puede postular) ---
 
@@ -325,7 +332,7 @@ def actualizar_estado(datos: ActualizarEstado):
             .single()
             .execute()
         )
-    except APIError:
+    except Exception:
         raise HTTPException(404, "Postulación no encontrada")
 
     estado_anterior = post.data["estado"]
@@ -340,7 +347,7 @@ def actualizar_estado(datos: ActualizarEstado):
             .single()
             .execute()
         )
-    except APIError:
+    except Exception:
         raise HTTPException(404, "Configuración no encontrada")
 
     cupos = config.data["cupos"]
@@ -386,7 +393,7 @@ def retirar_postulacion(nrc_ramo: str, rut_estudiante: str):
             .single()
             .execute()
         )
-    except APIError:
+    except Exception:
         raise HTTPException(404, "Postulación no encontrada")
 
     estaba_aceptado = post.data["estado"] == "aceptado"
@@ -413,7 +420,7 @@ def retirar_postulacion(nrc_ramo: str, rut_estudiante: str):
             .single()
             .execute()
         )
-    except APIError:
+    except Exception:
         raise HTTPException(404, "Configuración de ayudantía no encontrada")
 
     cupos_actuales = config.data["cupos"]
@@ -651,3 +658,43 @@ def abrir_ayudantia(config: ConfiguracionAyudantia):
         return {"mensaje": "Ayudantía configurada y abierta correctamente"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+
+@app.get("/api/postulaciones/estudiante")
+def obtener_postulaciones_estudiante(rut_estudiante: str):
+    # 1. Obtener postulaciones
+    resp_post = supabase.table("postulaciones").select("nrc, estado").eq("rut_estudiante", rut_estudiante).execute()
+    
+    if not resp_post.data:
+        return {"postulaciones": []}
+
+    nrcs = [p["nrc"] for p in resp_post.data]
+
+    # 2. Obtener info de configuración (ramos y profesores)
+    resp_ramos = supabase.table("configuracion_ayudantias").select("nrc, codigo_ramo, rut_profesor").in_("nrc", nrcs).execute()
+    ramos_info = {r["nrc"]: r for r in resp_ramos.data}
+
+    # 3. Obtener nombres de ramos
+    codigos = list(set([r["codigo_ramo"] for r in resp_ramos.data]))
+    resp_nombres = supabase.table("ramos").select("codigo, nombre").in_("codigo", codigos).execute()
+    nombres_ramos = {r["codigo"]: r["nombre"] for r in resp_nombres.data}
+
+    # 4. NUEVO: Obtener nombres de profesores
+    ruts_profes = list(set([r["rut_profesor"] for r in resp_ramos.data if r.get("rut_profesor")]))
+    nombres_profes = {}
+    if ruts_profes:
+        resp_profes = supabase.table("profesores").select("rut, nombre").in_("rut", ruts_profes).execute()
+        nombres_profes = {p["rut"]: p["nombre"] for p in resp_profes.data}
+
+    # 5. Combinar todo
+    resultado = [
+        {
+            "nrc": p["nrc"],
+            "estado": p["estado"],
+            "asignatura": nombres_ramos.get(ramos_info.get(p["nrc"], {}).get("codigo_ramo"), "Asignatura no encontrada"),
+            "profesor": nombres_profes.get(ramos_info.get(p["nrc"], {}).get("rut_profesor"), "Sin asignar") # <--- AQUÍ ENVIAMOS EL NOMBRE
+        }
+        for p in resp_post.data
+    ]
+
+    return {"postulaciones": resultado}
