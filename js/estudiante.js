@@ -20,7 +20,7 @@ const studentData = {
 let appliedCourses = [];
 
 let coursesData = [];
-let studentData = { notas: {} };
+
 document.addEventListener('DOMContentLoaded', () => {
   // Si no hay sesión de estudiante válida, redirige a index.html
   const sesion = Sesion.exigirRol(['estudiante']);
