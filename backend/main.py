@@ -53,14 +53,10 @@ def root():
 # --- RAMOS (tal cual la usa tu frontend: estudiante.js / docente.js) ---
 
 @app.get("/api/ramos")
-def obtener_ramos():
-    """
-    No existe una tabla que junte todo, así que se arma acá:
-      - ramos: catálogo fijo (codigo, nombre)
-      - configuracion_ayudantias: la config real de ayudantía por NRC
-        (nrc, rut_profesor, cupos, esta_abierto)
-    Se devuelve con los MISMOS nombres de campo que el frontend ya espera.
-    """
+def _construir_ramos(codigos_permitidos=None):
+    """Arma la lista de ayudantías con el mismo formato que ya espera el frontend.
+    Si se pasa codigos_permitidos, solo deja los ramos cuyo código esté ahí
+    (se usa para filtrar por elegibilidad de nota del estudiante)."""
     ramos_resp = supabase.table("ramos").select("*").execute()
     config_resp = supabase.table("configuracion_ayudantias").select("*").execute()
     postulaciones_resp = supabase.table("postulaciones").select("nrc, estado").execute()
@@ -74,18 +70,36 @@ def obtener_ramos():
 
     resultado = []
     for cfg in config_resp.data:
-        ramo_base = ramos_por_codigo.get(cfg["codigo_ramo"], {})
+        codigo_ramo = cfg["codigo_ramo"]
+        if codigos_permitidos is not None and codigo_ramo not in codigos_permitidos:
+            continue
+        ramo_base = ramos_por_codigo.get(codigo_ramo, {})
         nrc = cfg.get("nrc")
         resultado.append({
             "codigo_nrc": nrc,
             "nombre_ramo": ramo_base.get("nombre", "Ramo sin nombre"),
-            "departamento": "",  # dato no disponible en la BD actual
+            "departamento": "",
             "cupos": cfg.get("cupos"),
             "esta_abierto": cfg.get("esta_abierto"),
             "id_profesor_encargado": cfg.get("rut_profesor"),
             "postulantes": conteo_postulantes.get(nrc, 0),
         })
     return resultado
+
+
+@app.get("/api/ramos")
+def obtener_ramos():
+    return _construir_ramos()
+
+
+@app.get("/api/estudiante/{rut}/ramos-disponibles")
+def obtener_ramos_disponibles_estudiante(rut: str):
+    """Solo los ramos donde el estudiante aprobó con nota >= 4.0 (regla inalterable)."""
+    notas_resp = supabase.table("notas_api").select("codigo").eq("rut_estudiante", rut).gte("nota", 4.0).execute()
+    codigos_aprobados = {n["codigo"] for n in notas_resp.data}
+    if not codigos_aprobados:
+        return []
+    return _construir_ramos(codigos_permitidos=codigos_aprobados)
 
 
 # --- POSTULACIONES (estudiante) ---
@@ -100,7 +114,18 @@ class Postulacion(BaseModel):
 @app.post("/api/postular")
 def crear_postulacion(postulacion: Postulacion):
     try:
-        # Evita doble postulación activa al mismo NRC
+        config = supabase.table("configuracion_ayudantias").select("codigo_ramo, esta_abierto") \
+            .eq("nrc", postulacion.nrc_ramo).execute()
+        if not config.data or not config.data[0].get("esta_abierto"):
+            raise HTTPException(status_code=404, detail="La ayudantía no existe o no está abierta.")
+        codigo_ramo = config.data[0]["codigo_ramo"]
+
+        nota = supabase.table("notas_api").select("nota") \
+            .eq("rut_estudiante", postulacion.rut_estudiante) \
+            .eq("codigo", codigo_ramo).gte("nota", 4.0).execute()
+        if not nota.data:
+            raise HTTPException(status_code=403, detail="No cumples el requisito de nota (>= 4.0) para postular a este ramo.")
+
         ya_postulo = supabase.table("postulaciones").select("id") \
             .eq("rut_estudiante", postulacion.rut_estudiante) \
             .eq("nrc", postulacion.nrc_ramo) \
@@ -121,7 +146,7 @@ def crear_postulacion(postulacion: Postulacion):
         raise
     except Exception as e:
         print(f" ERROR EN EL BACKEND: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="No fue posible guardar la postulación.")
 
 
 def _enriquecer_postulaciones(postulaciones_raw):

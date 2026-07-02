@@ -14,18 +14,20 @@ const API_URL = 'http://127.0.0.1:8000';
    así que sobrevive al cambio de archivo .html. */
 
 const Sesion = {
-  guardar({ rol, nombre, correo, rut }) {
+  guardar({ rol, nombre, correo, rut, ppa }) {
     localStorage.setItem('userRole', rol);
     localStorage.setItem('userName', nombre);
     localStorage.setItem('userEmail', correo);
     if (rut) localStorage.setItem('userRut', rut);
+    if (ppa !== undefined && ppa !== null) localStorage.setItem('userPpa', ppa);
   },
   obtener() {
     return {
       rol: localStorage.getItem('userRole'),
       nombre: localStorage.getItem('userName'),
       correo: localStorage.getItem('userEmail'),
-      rut: localStorage.getItem('userRut')
+      rut: localStorage.getItem('userRut'),
+      ppa: localStorage.getItem('userPpa')
     };
   },
   limpiar() {
@@ -33,7 +35,9 @@ const Sesion = {
     localStorage.removeItem('userName');
     localStorage.removeItem('userEmail');
     localStorage.removeItem('userRut');
+    localStorage.removeItem('userPpa');
   },
+  // ... exigirRol queda igual
   /**
    * Llamar al inicio de estudiante.html o docente.html.
    * Si no hay sesión válida para el rol esperado, redirige a index.html.
@@ -146,7 +150,7 @@ async function handleRutLogin() {
     showToast(`Bienvenido/a, ${usuario.nombre || rut}. Redirigiendo...`, 'success');
     closeModal();
 
-    Sesion.guardar({ rol: rolFinal, nombre: usuario.nombre, correo: usuario.correo || '', rut: usuario.rut || rut });
+    Sesion.guardar({ rol: rolFinal, nombre: usuario.nombre, correo: usuario.correo || '', rut: usuario.rut || rut, ppa: usuario.ppa });
 
     setTimeout(() => {
       window.location.href = rolFinal === 'estudiante' ? 'estudiante.html' : 'docente.html';
