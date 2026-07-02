@@ -20,16 +20,15 @@ const studentData = {
 let appliedCourses = [];
 
 let coursesData = [];
-
+let studentData = { notas: {} };
 document.addEventListener('DOMContentLoaded', () => {
   // Si no hay sesión de estudiante válida, redirige a index.html
   const sesion = Sesion.exigirRol(['estudiante']);
   if (!sesion) return;
-
-  // Usamos los datos reales de la sesión en vez de studentData mock
   studentData.name = sesion.nombre;
+  studentData.rut = sesion.rut;
   studentData.email = sesion.correo;
-  if (sesion.rut) studentData.rut = sesion.rut;
+  studentData.ppa = (sesion.ppa !== undefined && sesion.ppa !== null) ? sesion.ppa : 'N/A';
 
   enterStudentPage();
 });
@@ -41,6 +40,7 @@ async function enterStudentPage() {
   document.getElementById('perfilNombre').textContent = studentData.name;
   document.getElementById('perfilCorreo').textContent = studentData.email;
   document.getElementById('perfilRut').textContent = studentData.rut;
+  document.getElementById('perfilPPA').textContent = studentData.ppa;
 
   // Primero traemos las notas reales (reemplazan el mock de dataStudents.js),
   // luego los ramos, y solo después las postulaciones, porque
@@ -68,7 +68,7 @@ async function fetchNotasEstudiante() {
 
 async function fetchRamosYRenderizar() {
   try {
-    const response = await fetch(`${API_URL}/api/ramos`);
+    const response = await fetch(`${API_URL}/api/estudiante/${encodeURIComponent(studentData.rut)}/ramos-disponibles`);
     if (!response.ok) throw new Error("Error al conectar con el servidor");
     coursesData = await response.json();
     renderDashboardCourses();

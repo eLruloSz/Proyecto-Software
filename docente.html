@@ -31,22 +31,27 @@
       </div>
     </header>
 
-    <!-- Contenido principal -->
     <div class="app-content" style="padding-top: 2rem;">
-      <div style="max-width: 960px; margin: 0 auto; padding: 0 1.5rem 4rem;">
+  <div style="max-width: 960px; margin: 0 auto; padding: 0 1.5rem 4rem;">
 
-        <div style="margin-bottom: 3rem;">
-          <span class="section-tag">Gestión Académica</span>
-          <h2 id="docenteWelcomeText" style="margin-top: 0.5rem; font-size: 1.8rem;">Bienvenido, Profesor</h2>
-          <p style="color: var(--muted);">Administra las postulaciones recibidas para tus asignaturas activas.</p>
-        </div>
-
-        <div id="docenteDashboardContent">
-          <p style="color:var(--muted); text-align:center; padding: 3rem;">Cargando asignaturas y postulaciones...</p>
-        </div>
-
+    <div style="margin-bottom: 3rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+      
+      <div>
+        <span class="section-tag">Gestión Académica</span>
+        <h2 id="docenteWelcomeText" style="margin-top: 0.5rem; font-size: 1.8rem;">Bienvenido, Profesor</h2>
+        <p style="color: var(--muted);">Administra las postulaciones recibidas para tus asignaturas activas.</p>
       </div>
+
+      <button id="btnDescargarExcel" class="btn btn-primary" onclick="descargarReporteExcel()" style="display: none;">
+        <i class="fas fa-file-excel"></i> Descargar Excel
+      </button>
+
+    </div> <div id="docenteDashboardContent">
+      <p style="color:var(--muted); text-align:center; padding: 3rem;">Cargando asignaturas y postulaciones...</p>
     </div>
+
+  </div>
+</div>
   </div>
 
   <!-- MODAL CONFIRMACIÓN DOCENTE -->
