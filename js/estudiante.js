@@ -253,3 +253,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+async function cargarMisPostulaciones() {
+  const rut = localStorage.getItem("rut_estudiante"); // ajusta a como guardes la sesión
+  const contenedor = document.getElementById("misPostulacionesContainer");
+
+  try {
+    const res = await fetch(`${API_URL}/api/postulaciones/estudiante?rut_estudiante=${rut}`);
+    if (!res.ok) throw new Error("No se pudieron cargar las postulaciones");
+
+    const { postulaciones } = await res.json();
+
+    if (postulaciones.length === 0) {
+      contenedor.innerHTML = `<p class="empty-state">Aún no tienes postulaciones.</p>`;
+      return;
+    }
+
+    contenedor.innerHTML = postulaciones.map(p => `
+      <div class="postulacion-card">
+        <div class="postulacion-info">
+          <h4>${p.asignatura}</h4>
+          <p class="profesor">Profesor: ${p.profesor}</p>
+        </div>
+        <span class="badge badge-${p.estado}">${formatearEstado(p.estado)}</span>
+      </div>
+    `).join("");
+
+  } catch (err) {
+    console.error(err);
+    contenedor.innerHTML = `<p class="error-state">Error al cargar tus postulaciones.</p>`;
+  }
+}
+
+function formatearEstado(estado) {
+  const mapa = { pendiente: "Pendiente", aceptado: "Aceptado", rechazado: "Rechazado" };
+  return mapa[estado] || estado;
+}
+
+document.addEventListener("DOMContentLoaded", cargarMisPostulaciones);

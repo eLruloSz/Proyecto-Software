@@ -665,3 +665,37 @@ def abrir_ayudantia(config: ConfiguracionAyudantia):
         return {"mensaje": "Ayudantía configurada y abierta correctamente"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+
+# Agrégalo en backend/main.py
+@app.get("/api/postulaciones/estudiante")
+def obtener_postulaciones_estudiante(rut_estudiante: str):
+    # 1. Obtener postulaciones
+    resp_post = supabase.table("postulaciones").select("nrc, estado").eq("rut_estudiante", rut_estudiante).execute()
+    
+    if not resp_post.data:
+        return {"postulaciones": []}
+
+    nrcs = [p["nrc"] for p in resp_post.data]
+
+    # 2. Obtener info de configuración (ramos y profesores)
+    resp_ramos = supabase.table("configuracion_ayudantias").select("nrc, codigo_ramo, rut_profesor").in_("nrc", nrcs).execute()
+    ramos_info = {r["nrc"]: r for r in resp_ramos.data}
+
+    # 3. Obtener nombres de ramos
+    codigos = list(set([r["codigo_ramo"] for r in resp_ramos.data]))
+    resp_nombres = supabase.table("ramos").select("codigo, nombre").in_("codigo", codigos).execute()
+    nombres_ramos = {r["codigo"]: r["nombre"] for r in resp_nombres.data}
+
+    # 4. Combinar todo
+    resultado = [
+        {
+            "nrc": p["nrc"],
+            "estado": p["estado"],
+            "asignatura": nombres_ramos.get(ramos_info.get(p["nrc"], {}).get("codigo_ramo"), "Asignatura no encontrada"),
+            "profesor": ramos_info.get(p["nrc"], {}).get("rut_profesor", "Sin asignar")
+        }
+        for p in resp_post.data
+    ]
+
+    return {"postulaciones": resultado}
