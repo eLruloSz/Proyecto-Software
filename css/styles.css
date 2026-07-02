@@ -1267,3 +1267,15 @@
       .app-user-pill span { display: none; }
       .app-tab { padding: 14px 16px; font-size: 0.9rem; }
     }
+/* ── Panel Docente (movido desde <style> inline en index.html original) ── */
+.panel-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow);
+}
+.status-badge.status-pendiente { background: rgba(244,162,97,.2); color: var(--warning); border: 1px solid var(--warning); }
+.status-badge.status-aprobado  { background: rgba(46,196,182,.2);  color: var(--success); border: 1px solid var(--success); }
+.status-badge.status-rechazado { background: rgba(231,111,81,.15); color: var(--danger);  border: 1px solid var(--danger); }

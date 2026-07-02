@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ayudantías UCN | Panel Docente</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;400;600;800;900&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+
+  <!-- APP COMPLETA DOCENTE / ADMIN -->
+  <div id="app-docente" class="app-page" style="display:block;">
+
+    <!-- Cabecera Fija -->
+    <header class="app-header">
+      <div class="app-header-left">
+        <div class="brand-icon-sm"><i class="fas fa-graduation-cap"></i></div>
+        <span>Sistema de Ayudantías</span>
+        <span id="docenteRoleBadge" style="font-size:0.75rem; color:var(--accent-light); font-weight:700; margin-left:8px; opacity:0.8;">| Panel Docente</span>
+      </div>
+      <div class="app-header-right">
+        <div class="app-user-pill">
+          <div class="app-avatar-sm" id="docenteHeaderAvatar">PD</div>
+          <span id="docenteHeaderName">Profesor</span>
+        </div>
+        <button class="btn btn-ghost" style="padding: 8px 16px;" onclick="logoutDocente()">
+          <i class="fas fa-sign-out-alt"></i> Salir
+        </button>
+      </div>
+    </header>
+
+    <!-- Contenido principal -->
+    <div class="app-content" style="padding-top: 2rem;">
+      <div style="max-width: 960px; margin: 0 auto; padding: 0 1.5rem 4rem;">
+
+        <div style="margin-bottom: 3rem;">
+          <span class="section-tag">Gestión Académica</span>
+          <h2 id="docenteWelcomeText" style="margin-top: 0.5rem; font-size: 1.8rem;">Bienvenido, Profesor</h2>
+          <p style="color: var(--muted);">Administra las postulaciones recibidas para tus asignaturas activas.</p>
+        </div>
+
+        <div id="docenteDashboardContent">
+          <p style="color:var(--muted); text-align:center; padding: 3rem;">Cargando asignaturas y postulaciones...</p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CONFIRMACIÓN DOCENTE -->
+  <div class="modal-overlay" id="confirmModalOverlay" role="dialog" aria-modal="true">
+    <div class="modal" style="max-width: 400px; text-align: center;">
+      <div class="modal-header" style="justify-content: center; border-bottom: none; padding-bottom: 0;">
+        <h3 id="confirmTitle" style="font-size: 1.4rem;">Confirmar Acción</h3>
+      </div>
+      <div class="modal-body" style="padding-top: 1rem;">
+        <p id="confirmMessage" style="color: var(--muted); margin-bottom: 2rem; font-size: 1.05rem;">¿Estás seguro?</p>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+          <button class="btn btn-ghost" onclick="cerrarModalConfirmacion()">Cancelar</button>
+          <button class="btn btn-primary" id="confirmActionBtn">Confirmar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOASTS -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="js/common.js" defer></script>
+  <script src="js/docente.js" defer></script>
+
+</body>
+</html>
