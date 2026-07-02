@@ -3,6 +3,16 @@
    Lógica exclusiva de estudiante.html.
    ======================================== */
 
+// Antes vivía en js/dataStudents.js con datos mock (nombre/notas de prueba).
+// Se eliminó ese archivo: ahora este objeto nace vacío y se llena 100% con
+// datos reales apenas carga la página (sesión real + /api/estudiantes/{rut}/notas).
+const studentData = {
+  name: '',
+  rut: '',
+  email: '',
+  notas: {}
+};
+
 // Postulaciones reales del estudiante, cargadas desde el backend.
 // (Antes había un dato de ejemplo hardcodeado 'NRC:12900' que quedó
 // de cuando se maquetó la pantalla antes de tener base de datos real.
@@ -32,11 +42,28 @@ async function enterStudentPage() {
   document.getElementById('perfilRut').textContent = studentData.rut;
   document.getElementById('perfilPPA').textContent = studentData.ppa;
 
-  // Primero traemos los ramos, y solo después las postulaciones,
-  // porque renderMyApplications necesita coursesData ya cargado
-  // para poder mostrar el nombre de la asignatura.
+  // Primero traemos las notas reales (reemplazan el mock de dataStudents.js),
+  // luego los ramos, y solo después las postulaciones, porque
+  // renderMyApplications necesita coursesData ya cargado para poder
+  // mostrar el nombre de la asignatura.
+  await fetchNotasEstudiante();
   await fetchRamosYRenderizar();
   await fetchMisPostulaciones();
+}
+
+async function fetchNotasEstudiante() {
+  try {
+    const response = await fetch(`${API_URL}/api/estudiantes/${encodeURIComponent(studentData.rut)}/notas`);
+    if (!response.ok) throw new Error("Error al conectar con el servidor");
+    // Pisa el objeto mock de dataStudents.js (ej. {'NRC:12900': 5.5}) con las
+    // notas reales indexadas por NRC (ej. {'SG031': 5.5}), que es la clave
+    // que realmente usa renderDashboardCourses() para comparar contra c.codigo_nrc.
+    studentData.notas = await response.json();
+  } catch (error) {
+    console.error(error);
+    showToast('No se pudieron cargar tus notas desde el servidor.', 'error');
+    studentData.notas = {};
+  }
 }
 
 async function fetchRamosYRenderizar() {
@@ -84,19 +111,25 @@ function switchView(viewId, tabElement) {
   tabElement.classList.add('active');
 }
 
+// Debe ser EXACTAMENTE la misma normalización que usa el backend
+// (_normalizar_nombre en main.py): MAYÚSCULAS + espacios colapsados.
+function normalizarNombreRamo(nombre) {
+  if (!nombre) return nombre;
+  return nombre.trim().toUpperCase().replace(/\s+/g, ' ');
+}
+
 function renderDashboardCourses() {
   const grid = document.getElementById('dashCoursesGrid');
-  
-  // Solo filtramos para que muestre los ramos que tienen estado "abierto"
-  const ramosValidos = coursesData.filter(c => c.esta_abierto);
-
-  if (ramosValidos.length === 0) {
-    grid.innerHTML = '<p style="color:var(--muted); text-align:center; grid-column: 1 / -1;">No hay ramos disponibles para postular.</p>';
-    return;
-  }
-
-  grid.innerHTML = ramosValidos.map(c => {
+  grid.innerHTML = coursesData.filter(c => {
+    // Se compara por NOMBRE de la asignatura (no por código ni por NRC):
+    // el código cambia según el año/periodo en que se dicta el ramo, pero
+    // el nombre se mantiene, así que es la clave estable para saber si el
+    // estudiante ya lo aprobó en cualquier periodo anterior.
+    const studentGrade = studentData.notas[normalizarNombreRamo(c.nombre_ramo)];
+    return studentGrade !== undefined && studentGrade >= 4.0 && c.esta_abierto;
+  }).map(c => {
     const isApplied = appliedCourses.some(app => app.code === c.codigo_nrc);
+    const notaAprobacion = studentData.notas[normalizarNombreRamo(c.nombre_ramo)];
 
     return `
       <div class="dash-course-card">
@@ -106,9 +139,8 @@ function renderDashboardCourses() {
         </div>
         <h3>${c.nombre_ramo}</h3>
         <div class="meta"><i class="fas fa-chalkboard-teacher"></i> ${c.id_profesor_encargado || "Por asignar"}</div>
-        <div class="meta"><i class="fas fa-check-circle" style="color:var(--success);"></i> Requisito académico cumplido</div>
-        
-        <button class="btn-postular ${isApplied ? 'applied' : ''}" onclick="${isApplied ? '' : `abrirModalPostulacion('${c.nombre_ramo}', '${c.codigo_nrc}', 'Aprobado')`}">
+        <div class="meta"><i class="fas fa-star" style="color:var(--warning);"></i> Mi nota: <strong style="color:var(--success)">${notaAprobacion}</strong></div>
+        <button class="btn-postular ${isApplied ? 'applied' : ''}" onclick="${isApplied ? '' : `abrirModalPostulacion('${c.nombre_ramo}', '${c.codigo_nrc}', ${notaAprobacion})`}">
           ${isApplied ? '<i class="fas fa-check"></i> Ya postulé' : '<i class="fas fa-paper-plane"></i> Postular'}
         </button>
       </div>`;

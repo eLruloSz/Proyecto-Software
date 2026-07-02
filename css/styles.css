@@ -1239,28 +1239,124 @@
     .status-badge.rechazado { background: rgba(231,111,81,0.15); color: var(--danger); }
 
 
-     .modal-oculto {
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0,0,0,0.7);
-  backdrop-filter: blur(5px); /* Un toque moderno */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999; /* ESTO ES CLAVE */
-}
-.modal-contenido {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 400px;
-}
-.cerrar-btn {
-  float: right;
-  cursor: pointer;
-  font-weight: bold;
-}
+    .modal-oculto {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(3, 10, 18, 0.75);
+      backdrop-filter: blur(6px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      padding: 1.5rem;
+    }
+
+    .modal-contenido {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 520px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 2rem 2.25rem 2.25rem;
+      color: var(--fg);
+      position: relative;
+    }
+
+    .modal-contenido h2 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      margin: 0 0 1.5rem;
+      padding-right: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .modal-contenido h2::before {
+      content: '\f1d8'; /* fa-paper-plane */
+      font-family: 'Font Awesome 6 Free';
+      font-weight: 900;
+      color: var(--accent);
+      font-size: 1.1rem;
+    }
+
+    .cerrar-btn {
+      position: absolute;
+      top: 1.25rem;
+      right: 1.25rem;
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 1.3rem;
+      line-height: 1;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .cerrar-btn:hover {
+      background: rgba(255,255,255,0.06);
+      color: var(--fg);
+    }
+
+    /* Resumen de la asignatura a la que se postula: se ve como "tarjeta dentro
+       de la tarjeta" para separar visualmente los datos fijos (asignatura,
+       NRC, nota) del campo que el estudiante sí puede escribir (motivación) */
+    .resumen-postulacion {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem 1.5rem;
+    }
+
+    .resumen-postulacion .form-group { margin-bottom: 0; flex: 1 1 100%; }
+    .resumen-postulacion .form-group.resumen-mitad { flex: 1 1 auto; min-width: 140px; }
+
+    #modalPostulacion input[readonly] {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      cursor: default;
+      font-weight: 700;
+    }
+
+    #postulacionAsignatura {
+      font-size: 1.1rem;
+      color: var(--accent-light);
+    }
+
+    #postulacionNrc {
+      color: var(--fg-secondary);
+      font-family: monospace;
+      letter-spacing: 0.5px;
+    }
+
+    #postulacionNota {
+      color: var(--success);
+    }
+
+    #modalPostulacion textarea#postulacionMotivacion {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    #modalPostulacion button[type="submit"] {
+      width: 100%;
+      justify-content: center;
+      margin-top: 0.5rem;
+      padding: 13px;
+      font-size: 1rem;
+    }
 
 
     @media (max-width: 768px) {
