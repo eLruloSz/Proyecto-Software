@@ -52,7 +52,7 @@ def root():
 
 # --- RAMOS ---
 @app.get("/api/ramos")
-def _construir_ramos(codigos_permitidos=None):
+def _construir_ramos(codigos_permitidos=None, rut_profesor: str | None = None):
     ramos_resp = supabase.table("ramos").select("*").execute()
     config_resp = supabase.table("configuracion_ayudantias").select("*").execute()
     postulaciones_resp = supabase.table("postulaciones").select("nrc, estado").execute()
@@ -69,11 +69,13 @@ def _construir_ramos(codigos_permitidos=None):
         codigo_ramo = cfg["codigo_ramo"]
         if codigos_permitidos is not None and codigo_ramo not in codigos_permitidos:
             continue
+        if rut_profesor is not None and cfg.get("rut_profesor") != rut_profesor:
+            continue
         ramo_base = ramos_por_codigo.get(codigo_ramo, {})
         nrc = cfg.get("nrc")
         resultado.append({
             "codigo_nrc": nrc,
-            "codigo_ramo": cfg.get("codigo_ramo"),  # código de la asignatura (ej. 'ECIN-00026'); se usa para saber si el estudiante ya la aprobó, sin importar en qué NRC/sección la cursó
+            "codigo_ramo": cfg.get("codigo_ramo"),
             "nombre_ramo": ramo_base.get("nombre", "Ramo sin nombre"),
             "departamento": "",
             "cupos": cfg.get("cupos"),
@@ -144,7 +146,7 @@ def configurar_ramo(datos: ConfigurarRamo):
         payload = {
             "codigo_ramo": datos.codigo_ramo,
             "nrc": datos.nrc,
-            "rut_profesor": datos.rut_profesor,
+            "rut_profesor": limpiar_rut(datos.rut_profesor) if datos.rut_profesor else None,
             "cupos": datos.cupos,
             "esta_abierto": datos.esta_abierto,
         }
@@ -260,12 +262,19 @@ def _enriquecer_postulaciones(postulaciones_raw):
 
 
 @app.get("/api/postulaciones")
-def obtener_postulaciones():
+def obtener_postulaciones(rut_profesor: str | None = None):
     try:
-        response = supabase.table("postulaciones").select("*").execute()
+        if rut_profesor is not None:
+            config_resp = supabase.table("configuracion_ayudantias").select("nrc").eq("rut_profesor", rut_profesor).execute()
+            nrcs_del_profesor = [c["nrc"] for c in config_resp.data]
+            if not nrcs_del_profesor:
+                return []
+            response = supabase.table("postulaciones").select("*").in_("nrc", nrcs_del_profesor).execute()
+        else:
+            response = supabase.table("postulaciones").select("*").execute()
         return _enriquecer_postulaciones(response.data)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="No fue posible obtener las postulaciones.")
 
 
 class ActualizarEstado(BaseModel):
@@ -402,7 +411,6 @@ def retirar_postulacion(nrc_ramo: str, rut_estudiante: str):
 
 
 # --- UTILIDADES DE RUT ---
-# --- UTILIDADES DE RUT ---
 def limpiar_rut(rut: str) -> str:
     """
     Limpia el RUT quitando puntos y espacios, y asegura que tenga guion.
@@ -484,59 +492,6 @@ async def login(data: LoginData):
             raise HTTPException(status_code=403, detail="NEEDS_ACTIVATION_PROFESSOR")
     except Exception:
         pass # Regla de oro: Ocultamos el error de la UCN si no es profesor
-
-    raise HTTPException(status_code=404, detail="Usuario no encontrado en los registros.")
-
-
-@app.post("/api/auth/login")
-async def login(data: LoginData):
-    rut_limpio = limpiar_rut(data.rut)
-    if not rut_limpio:
-        raise HTTPException(status_code=400, detail="RUT o Username requerido.")
-
-    # 1. Buscar Administrador
-    resp_admin = supabase.table("administradores").select("*").eq("username", rut_limpio).execute()
-    if resp_admin.data:
-        admin = resp_admin.data[0]
-        if pwd_context.verify(data.password, admin["password_hash"]):
-            return {"message": "Login exitoso", "user": {"nombre": "Administrador", "rut": rut_limpio}, "rol": "admin"}
-        raise HTTPException(status_code=401, detail="Contraseña incorrecta.")
-
-    # 2. Buscar Estudiante
-    resp_est = supabase.table("estudiantes").select("*").eq("rut", rut_limpio).execute()
-    if resp_est.data:
-        alumno = resp_est.data[0]
-        if not alumno.get("password_hash"):
-            raise HTTPException(status_code=403, detail="NEEDS_ACTIVATION_STUDENT")
-        if not pwd_context.verify(data.password, alumno["password_hash"]):
-            raise HTTPException(status_code=401, detail="Contraseña incorrecta.")
-        alumno.pop("password_hash", None)
-        return {"message": "Login exitoso", "user": alumno, "rol": "estudiante"}
-
-    # 3. Buscar Profesor
-    resp_prof = supabase.table("profesores").select("*").eq("rut", rut_limpio).execute()
-    if resp_prof.data:
-        prof = resp_prof.data[0]
-        if not prof.get("password_hash"):
-            raise HTTPException(status_code=403, detail="NEEDS_ACTIVATION_PROFESSOR")
-        if not pwd_context.verify(data.password, prof["password_hash"]):
-            raise HTTPException(status_code=401, detail="Contraseña incorrecta.")
-        prof.pop("password_hash", None)
-        return {"message": "Login exitoso", "user": prof, "rol": "profesor"}
-
-    # 4. Fallback API Profesores UCN
-    try:
-        datos_profesor_ucn = await ucn_api.obtener_ramos_profesor(rut_limpio)
-        if datos_profesor_ucn:
-            nombre_prof = datos_profesor_ucn.get("nombre", f"Profesor {rut_limpio}")
-            supabase.table("profesores").insert({
-                "rut": rut_limpio,
-                "nombre": nombre_prof,
-                "password_hash": None
-            }).execute()
-            raise HTTPException(status_code=403, detail="NEEDS_ACTIVATION_PROFESSOR")
-    except Exception:
-        pass
 
     raise HTTPException(status_code=404, detail="Usuario no encontrado en los registros.")
 

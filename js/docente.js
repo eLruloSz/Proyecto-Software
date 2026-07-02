@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const sesion = Sesion.exigirRol(['profesor', 'admin']);
   if (!sesion) return;
 
+  rutProfesorActual = sesion.rol === 'profesor' ? sesion.rut : null;
   enterDocentePage(sesion.rol, sesion.nombre);
 
   // Listener del modal de confirmación
@@ -54,9 +55,10 @@ async function cargarPanelDocente() {
   container.innerHTML = '<p style="color:var(--muted); text-align:center; padding: 3rem;">Cargando asignaturas y postulaciones...</p>';
 
   try {
+    const filtro = rutProfesorActual ? `?rut_profesor=${encodeURIComponent(rutProfesorActual)}` : '';
     const [resRamos, resPostulaciones] = await Promise.all([
-      fetch(`${API_URL}/api/ramos`),
-      fetch(`${API_URL}/api/postulaciones`)
+      fetch(`${API_URL}/api/ramos${filtro}`),
+      fetch(`${API_URL}/api/postulaciones${filtro}`)
     ]);
 
     if (!resRamos.ok || !resPostulaciones.ok) throw new Error('Error en los datos del servidor');
@@ -64,13 +66,10 @@ async function cargarPanelDocente() {
     const ramosData = await resRamos.json();
     const postulacionesData = await resPostulaciones.json();
 
-
     datosGlobalesRamos = ramosData;
     datosGlobalesPostulaciones = postulacionesData;
-    
-    
-    document.getElementById('btnDescargarExcel').style.display = 'inline-flex';
 
+    document.getElementById('btnDescargarExcel').style.display = 'inline-flex';
     renderizarPanelDocente(ramosData, postulacionesData);
   } catch (error) {
     console.error(error);
