@@ -343,6 +343,10 @@ async def login(data: LoginData):
     resp_admin = supabase.table("administradores").select("*").eq("username", usuario_crudo).execute()
     if resp_admin.data:
         admin = resp_admin.data[0]
+
+        if not admin.get("password_hash"):
+            raise HTTPException(status_code=403, detail="NEEDS_ACTIVATION_ADMIN")
+        
         if pwd_context.verify(data.password, admin["password_hash"]):
             return {"message": "Login exitoso", "user": {"nombre": "Administrador", "rut": usuario_crudo}, "rol": "admin"}
         raise HTTPException(status_code=401, detail="Contraseña incorrecta.")
@@ -450,19 +454,28 @@ class ActivarData(BaseModel):
 
 @app.post("/api/auth/activar")
 def activar_cuenta(data: ActivarData):
-    tabla = "estudiantes" if data.rol == "estudiante" else "profesores"
     rut = limpiar_rut(data.rut)
     
-    response = supabase.table(tabla).select("rut").eq("rut", rut).execute()
+    if data.rol == "admin":
+        tabla = "administradores"
+        columna_id = "username"
+    elif data.rol == "estudiante":
+        tabla = "estudiantes"
+        columna_id = "rut"
+    else:
+        tabla = "profesores"
+        columna_id = "rut"
+    
+    response = supabase.table(tabla).select(columna_id).eq(columna_id, rut).execute()
     if not response.data:
-        raise HTTPException(status_code=404, detail="RUT no válido.")
+        raise HTTPException(status_code=404, detail="Usuario o RUT no válido.")
+        
     if len(data.nueva_password) < 6:
         raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 6 caracteres.")
 
     hash_guardado = pwd_context.hash(data.nueva_password)
-    supabase.table(tabla).update({"password_hash": hash_guardado}).eq("rut", rut).execute()
+    supabase.table(tabla).update({"password_hash": hash_guardado}).eq(columna_id, rut).execute()
     return {"message": "Cuenta activada correctamente."}
-
 
 # --- SINCRONIZACIÓN ---
 class SincronizarData(BaseModel):
