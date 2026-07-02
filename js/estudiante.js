@@ -10,16 +10,15 @@
 let appliedCourses = [];
 
 let coursesData = [];
-
+let studentData = { notas: {} };
 document.addEventListener('DOMContentLoaded', () => {
   // Si no hay sesión de estudiante válida, redirige a index.html
   const sesion = Sesion.exigirRol(['estudiante']);
   if (!sesion) return;
-
-  // Usamos los datos reales de la sesión en vez de studentData mock
   studentData.name = sesion.nombre;
+  studentData.rut = sesion.rut;
   studentData.email = sesion.correo;
-  if (sesion.rut) studentData.rut = sesion.rut;
+  studentData.ppa = (sesion.ppa !== undefined && sesion.ppa !== null) ? sesion.ppa : 'N/A';
 
   enterStudentPage();
 });
@@ -31,6 +30,7 @@ async function enterStudentPage() {
   document.getElementById('perfilNombre').textContent = studentData.name;
   document.getElementById('perfilCorreo').textContent = studentData.email;
   document.getElementById('perfilRut').textContent = studentData.rut;
+  document.getElementById('perfilPPA').textContent = studentData.ppa;
 
   // Primero traemos los ramos, y solo después las postulaciones,
   // porque renderMyApplications necesita coursesData ya cargado
@@ -41,7 +41,7 @@ async function enterStudentPage() {
 
 async function fetchRamosYRenderizar() {
   try {
-    const response = await fetch(`${API_URL}/api/ramos`);
+    const response = await fetch(`${API_URL}/api/estudiante/${encodeURIComponent(studentData.rut)}/ramos-disponibles`);
     if (!response.ok) throw new Error("Error al conectar con el servidor");
     coursesData = await response.json();
     renderDashboardCourses();
@@ -86,10 +86,16 @@ function switchView(viewId, tabElement) {
 
 function renderDashboardCourses() {
   const grid = document.getElementById('dashCoursesGrid');
-  grid.innerHTML = coursesData.filter(c => {
-    const studentGrade = studentData.notas[c.codigo_nrc];
-    return studentGrade !== undefined && studentGrade >= 4.0 && c.esta_abierto;
-  }).map(c => {
+  
+  // Solo filtramos para que muestre los ramos que tienen estado "abierto"
+  const ramosValidos = coursesData.filter(c => c.esta_abierto);
+
+  if (ramosValidos.length === 0) {
+    grid.innerHTML = '<p style="color:var(--muted); text-align:center; grid-column: 1 / -1;">No hay ramos disponibles para postular.</p>';
+    return;
+  }
+
+  grid.innerHTML = ramosValidos.map(c => {
     const isApplied = appliedCourses.some(app => app.code === c.codigo_nrc);
 
     return `
@@ -100,8 +106,9 @@ function renderDashboardCourses() {
         </div>
         <h3>${c.nombre_ramo}</h3>
         <div class="meta"><i class="fas fa-chalkboard-teacher"></i> ${c.id_profesor_encargado || "Por asignar"}</div>
-        <div class="meta"><i class="fas fa-star" style="color:var(--warning);"></i> Mi nota: <strong style="color:var(--success)">${studentData.notas[c.codigo_nrc]}</strong></div>
-        <button class="btn-postular ${isApplied ? 'applied' : ''}" onclick="${isApplied ? '' : `abrirModalPostulacion('${c.nombre_ramo}', '${c.codigo_nrc}', ${studentData.notas[c.codigo_nrc]})`}">
+        <div class="meta"><i class="fas fa-check-circle" style="color:var(--success);"></i> Requisito académico cumplido</div>
+        
+        <button class="btn-postular ${isApplied ? 'applied' : ''}" onclick="${isApplied ? '' : `abrirModalPostulacion('${c.nombre_ramo}', '${c.codigo_nrc}', 'Aprobado')`}">
           ${isApplied ? '<i class="fas fa-check"></i> Ya postulé' : '<i class="fas fa-paper-plane"></i> Postular'}
         </button>
       </div>`;
