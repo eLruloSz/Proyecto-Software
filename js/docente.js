@@ -250,6 +250,7 @@ function descargarReporteExcel() {
     const asig = nombreRamo.replace(/;/g, ',');
     const rut = p.rut_estudiante || '';
     const nombre = (p.nombre_estudiante || '').replace(/;/g, ',');
+    const correo = p.correo || 'Sin correo';
     const nota = p.nota_obtenida || 'N/A';
     const ppa = p.ppa || 'N/A';
     
