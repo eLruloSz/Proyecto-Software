@@ -108,7 +108,14 @@ async function handleRutLogin() {
 
     if (response.status === 403) {
       const data = await response.json();
-      const rolTabla = data.detail === 'NEEDS_ACTIVATION_PROFESSOR' ? 'profesor' : 'estudiante';
+      
+      let rolTabla = 'estudiante';
+      if (data.detail === 'NEEDS_ACTIVATION_PROFESSOR') {
+        rolTabla = 'profesor';
+      } else if (data.detail === 'NEEDS_ACTIVATION_ADMIN') {
+        rolTabla = 'admin';
+      }
+      
       closeModal();
       showActivationScreen(rut, rolTabla);
       return;
