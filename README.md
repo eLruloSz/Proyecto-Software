@@ -1,40 +1,67 @@
-# Sistema de Gestión de Ayudantías - UCN 🎓
+# Sistema de Gestión de Ayudantías - UCN
 
-Este proyecto es una plataforma web desarrollada para optimizar y centralizar el proceso de postulación y selección de ayudantes en la **Universidad Católica del Norte (UCN)**. Inicialmente enfocado en la **Escuela de Ingeniería**, el sistema busca facilitar la conexión entre los estudiantes que desean ejercer como ayudantes y los profesores que requieren apoyo en sus asignaturas.
+## Descripción del Proyecto
+Plataforma web desarrollada para optimizar, descentralizar y administrar el proceso de postulación y selección de ayudantes en la Universidad Católica del Norte. El sistema conecta a estudiantes interesados en ejercer como ayudantes con los docentes que requieren apoyo en sus asignaturas, estandarizando el flujo de aprobación y rechazo mediante una arquitectura Cliente-Servidor.
 
-## 🚀 Objetivo del Proyecto
+## Arquitectura del Sistema
+El proyecto está construido bajo un patrón de arquitectura Cliente-Servidor, separando claramente la capa de presentación (Frontend) de la lógica de negocio y persistencia de datos (Backend + Base de Datos).
 
-El proceso de inscripción para ayudantías tradicionalmente puede ser tedioso o estar descentralizado. Esta plataforma permite que los estudiantes se inscriban de forma rápida y cómoda a los ramos de su interés (por ejemplo, Programación, Cálculo, etc.). Al mismo tiempo, proporciona a los docentes un panel intuitivo para revisar a los postulantes y seleccionar al candidato ideal para su asignatura.
+* **Frontend:** Vanilla JavaScript, HTML5 y CSS3. Aplicación de página única (SPA) modularizada que maneja vistas basadas en roles (Estudiante, Docente, Administrador).
+* **Backend:** Python con FastAPI. Encargado de exponer la API RESTful, validación de esquemas de datos y lógica de negocio.
+* **Base de Datos:** Supabase (PostgreSQL). Actúa como servicio de persistencia para ramos, postulaciones y usuarios.
 
-El sistema está diseñado con una arquitectura escalable, con la visión a futuro de integrar a otras escuelas y facultades de la universidad, como Medicina o Derecho, adaptándose a sus propias mallas y requerimientos.
+## Estructura del Repositorio y Módulos
 
-## ✨ Características Principales
+El proyecto se divide en dos grandes bloques lógicos: el directorio `backend/` y los archivos de la raíz que componen el `frontend`.
 
-### 🧑‍🎓 Para Estudiantes (Postulantes)
-* **Exploración de Asignaturas:** Visualización clara de los ramos con cupos de ayudantía disponibles.
-* **Postulación Simplificada:** Interfaz amigable para inscribirse en una o múltiples asignaturas.
-* **Seguimiento de Estado:** Revisión del estado de la postulación (Pendiente, Seleccionado, Rechazado).
+### 1. Capa Backend (`/backend`)
+Contiene la lógica central del servidor y la conexión a la base de datos.
 
-### 👨‍🏫 Para Profesores
-* **Panel de Gestión:** Acceso exclusivo para visualizar las asignaturas que el docente tiene a cargo.
-* **Revisión de Candidatos:** Listado detallado de los estudiantes que se han postulado a sus ramos.
-* **Selección Oficial:** Herramienta directa para asignar el rol de ayudante a los postulantes elegidos.
+* `database.py`: Módulo de persistencia. Se encarga de inicializar el cliente de Supabase y cargar de manera segura las variables de entorno (`SUPABASE_URL`, `SUPABASE_KEY`) mediante `dotenv`.
+* `main.py`: Módulo principal y enrutador de la API. Inicializa la aplicación FastAPI, configura los middlewares (CORS) y define los endpoints. Además, aloja las **clases de dominio (Modelos de Pydantic)** que estructuran el intercambio de datos.
 
-### 📈 Proyección Futura (Escalabilidad)
-* Soporte multi-facultad para englobar a toda la comunidad UCN.
-* Gestión de roles y permisos dinámicos (Coordinadores, Jefes de Carrera).
+#### Clases y Modelos de Datos (Pydantic)
+Estas clases validan y tipan los datos que ingresan al sistema. Serán fundamentales para el modelado de clases posterior:
 
-## 🛠️ Tecnologías Utilizadas
-*(Nota: Actualiza esta sección con las herramientas específicas que estés utilizando)*
-* **Frontend:** HTML5, CSS3, JavaScript / [React, Vue, Angular.]
-* **Backend:** [Node.js, Python, Java.]
-* **Base de Datos:** [MySQL, PostgreSQL, MongoDB.]
-* **Diseño/UI:** [Tailwind CSS, Bootstrap, Figma.]
+* **`Postulacion`**: Estructura de datos para crear una nueva solicitud de ayudantía.
+    * Atributos: `nrc_ramo` (str), `rut_estudiante` (str), `nombre_estudiante` (str), `nota_obtenida` (float).
+* **`ActualizarEstado`**: Estructura para que los docentes aprueben o rechacen postulaciones.
+    * Atributos: `nrc_ramo` (str), `rut_estudiante` (str), `nuevo_estado` (str).
+* **`EstudianteRegistro`**: Estructura para la creación de nuevas cuentas de estudiante.
+    * Atributos: `rut` (str), `nombre` (str), `correo` (str), `password` (str).
+* **`EstudianteLogin`**: Estructura para la autenticación de usuarios.
+    * Atributos: `correo` (str), `password` (str).
 
-## ⚙️ Instalación y Configuración Local
+### 2. Capa Frontend (Directorio Raíz)
+Encargada de la interfaz de usuario y del consumo de la API REST.
 
-Sigue estos pasos para desplegar el proyecto en tu entorno local:
+* `index.html`: Punto de entrada de la aplicación. Contiene la estructura del DOM para la Landing Page, el Panel de Estudiante y el Panel Docente.
+* `css/styles.css`: Hojas de estilo centralizadas. Define variables de entorno visual (colores, sombras) y el diseño responsivo general del aplicativo.
+* `js/ui.js`: Controlador principal del cliente. Maneja los eventos del DOM, la renderización dinámica de componentes (tarjetas de ramos, tablas de postulación) y encapsula las llamadas asíncronas (`fetch`) a la API de FastAPI.
+* `js/dataStudents.js`: Módulo de datos simulados (Mock). Provee la estructura inicial de datos académicos del estudiante logueado (RUT, nombre, PPA y diccionario de notas por asignatura) para la lógica de validación del frontend.
+* `js/particles.js`: Módulo gráfico independiente que renderiza el fondo interactivo utilizando la API de Canvas de HTML5.
 
-1. Clona este repositorio:
+## Resumen de Endpoints (API REST)
+
+| Método | Endpoint | Descripción |
+| :--- | :--- | :--- |
+| `GET` | `/api/ramos` | Retorna el listado completo de asignaturas disponibles desde Supabase. |
+| `POST` | `/api/postular` | Registra una nueva postulación y actualiza el contador de postulantes del ramo. |
+| `GET` | `/api/postulaciones` | Obtiene todas las postulaciones activas para el panel de revisión docente. |
+| `PUT` | `/api/postulaciones/estado` | Modifica el estado (`aceptado`/`rechazado`) de una postulación. |
+| `POST` | `/api/login` | Valida credenciales contra la tabla de estudiantes. |
+| `POST` | `/api/registro` | Crea un nuevo registro de estudiante en la base de datos. |
+
+## Instrucciones de Despliegue Local
+
+### Requisitos Previos
+* Python 3.10 o superior.
+* Git.
+* Una cuenta en Supabase con las tablas configuradas (`ramos`, `postulaciones`, `estudiantes`).
+
+### Pasos de Configuración del Backend
+
+1. Clonar el repositorio:
    ```bash
-   git clone [https://github.com/tu-usuario/nombre-del-repo.git](https://github.com/tu-usuario/nombre-del-repo.git)
+   git clone <url-del-repositorio>
+   cd <nombre-del-directorio>
