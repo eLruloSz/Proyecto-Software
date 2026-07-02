@@ -239,24 +239,55 @@ def _enriquecer_postulaciones(postulaciones_raw):
     ruts = list({p["rut_estudiante"] for p in postulaciones_raw})
     nrcs = list({p["nrc"] for p in postulaciones_raw})
 
-    estudiantes_resp = supabase.table("estudiantes").select("rut, nombre, ppa").in_("rut", ruts).execute()
-    nombres_por_rut = {e["rut"]: e["nombre"] for e in estudiantes_resp.data}
-    ppa_por_rut = {e["rut"]: e.get("ppa") for e in estudiantes_resp.data}
-    correo_por_rut = {e["rut"]: e.get("correo") for e in estudiantes_resp.data}
+    # 1. Datos básicos de los estudiantes
+    estudiantes_resp = supabase.table("estudiantes").select("rut, nombre, ppa, correo").in_("rut", ruts).execute()
+    estudiantes_info = {e["rut"]: e for e in estudiantes_resp.data}
 
-    notas_resp = supabase.table("notas_api").select("rut_estudiante, nrc, nota") \
-        .in_("rut_estudiante", ruts).in_("nrc", nrcs).execute()
-    notas_por_rut_nrc = {(n["rut_estudiante"], n["nrc"]): n["nota"] for n in notas_resp.data}
+    # 2. Mapear NRC actual -> Codigo Ramo (de la configuración actual)
+    config_resp = supabase.table("configuracion_ayudantias").select("nrc, codigo_ramo").in_("nrc", nrcs).execute()
+    codigo_por_nrc = {c["nrc"]: c["codigo_ramo"] for c in config_resp.data}
+    codigos_unicos = list(set(codigo_por_nrc.values()))
 
+    # 3. Mapear Codigo Ramo -> Nombre normalizado (del catálogo de ramos)
+    ramos_resp = supabase.table("ramos").select("codigo, nombre").in_("codigo", codigos_unicos).execute()
+    nombre_por_codigo = {r["codigo"]: _normalizar_nombre(r["nombre"]) for r in ramos_resp.data}
+
+    # 4. Traer TODAS las notas históricas de los estudiantes que están postulando
+    notas_resp = supabase.table("notas_api").select("rut_estudiante, nombre, nota").in_("rut_estudiante", ruts).execute()
+    
+    # 5. Agrupar notas por (RUT, Nombre Ramo Normalizado)
+    # ¡Esta es la misma lógica que usa el frontend de estudiantes para evitar fallos!
+    notas_por_rut_nombre = {}
+    for n in notas_resp.data:
+        nombre_norm = _normalizar_nombre(n.get("nombre"))
+        if not nombre_norm:
+            continue
+        clave = (n["rut_estudiante"], nombre_norm)
+        # Nos quedamos con la mejor nota si dio el ramo varias veces
+        if clave not in notas_por_rut_nombre or n["nota"] > notas_por_rut_nombre[clave]:
+            notas_por_rut_nombre[clave] = n["nota"]
+
+    # 6. Ensamblar todo
     resultado = []
     for p in postulaciones_raw:
+        rut = p["rut_estudiante"]
+        nrc = p.get("nrc")
+        
+        # El camino de migas: NRC actual -> Código actual -> Nombre histórico
+        codigo_ramo = codigo_por_nrc.get(nrc)
+        nombre_ramo = nombre_por_codigo.get(codigo_ramo)
+        
+        # Hacemos match infalible por el NOMBRE
+        nota_final = notas_por_rut_nombre.get((rut, nombre_ramo))
+
+        info_est = estudiantes_info.get(rut, {})
         resultado.append({
             **p,
-            "nrc_ramo": p.get("nrc"),
-            "nombre_estudiante": nombres_por_rut.get(p["rut_estudiante"], p["rut_estudiante"]),
-            "nota_obtenida": notas_por_rut_nrc.get((p["rut_estudiante"], p["nrc"])),
-            "ppa": ppa_por_rut.get(p["rut_estudiante"]),
-            "correo": correo_por_rut.get(p["rut_estudiante"]),
+            "nrc_ramo": nrc,
+            "nombre_estudiante": info_est.get("nombre", rut),
+            "nota_obtenida": nota_final,
+            "ppa": info_est.get("ppa"),
+            "correo": info_est.get("correo"),
         })
     return resultado
 
