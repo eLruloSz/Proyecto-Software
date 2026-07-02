@@ -233,7 +233,11 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(payload)
       });
 
-      if (!response.ok) throw new Error("Error en el servidor al enviar la postulación");
+      if (!response.ok) {
+        // En lugar de ignorar el detalle, extraemos el error real enviado por FastAPI
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Error interno al enviar la postulación");
+      }
 
       const ramosResponse = await fetch(`${API_URL}/api/ramos`);
       coursesData = await ramosResponse.json();

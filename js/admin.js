@@ -4,6 +4,32 @@
    ======================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
+  
+  // Escuchar cuando cambie la asignatura seleccionada para sugerir NRCs
+document.getElementById('selectRamo').addEventListener('change', async (e) => {
+  const codigoRamo = e.target.value;
+  const datalist = document.getElementById('nrcSuggestions');
+  
+  // Limpiamos sugerencias anteriores
+  datalist.innerHTML = '';
+  
+  if (!codigoRamo) return;
+  
+  try {
+    const res = await fetch(`${API_URL}/api/admin/ramos/${codigoRamo}/nrcs`);
+    if (!res.ok) throw new Error("No se pudieron obtener las sugerencias");
+    
+    const nrcs = await res.json();
+    
+    // Poblamos el datalist con las opciones devueltas por el servidor
+    datalist.innerHTML = nrcs.map(nrc => `<option value="${nrc}"></option>`).join('');
+  } catch (error) {
+    console.error("Error al cargar sugerencias de NRC:", error);
+  }
+});
+  
+  
+  
   // Exigimos rol de admin estrictamente
   const sesion = Sesion.exigirRol(['admin']);
   if (!sesion) return;

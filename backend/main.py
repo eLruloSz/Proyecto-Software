@@ -199,18 +199,28 @@ class Postulacion(BaseModel):
 @app.post("/api/postular")
 def crear_postulacion(postulacion: Postulacion):
     try:
+        # 1. Verificar que la ayudantía exista y esté abierta
         config = supabase.table("configuracion_ayudantias").select("codigo_ramo, esta_abierto") \
             .eq("nrc", postulacion.nrc_ramo).execute()
         if not config.data or not config.data[0].get("esta_abierto"):
             raise HTTPException(status_code=404, detail="La ayudantía no existe o no está abierta.")
+        
         codigo_ramo = config.data[0]["codigo_ramo"]
 
-        nota = supabase.table("notas_api").select("nota") \
-            .eq("rut_estudiante", postulacion.rut_estudiante) \
-            .eq("codigo", codigo_ramo).gte("nota", 4.0).execute()
-        if not nota.data:
+        # 2. Validar que el estudiante aprobó (usando el nombre del ramo, igual que el frontend)
+        ramo_data = supabase.table("ramos").select("nombre").eq("codigo", codigo_ramo).execute()
+        if not ramo_data.data:
+            raise HTTPException(status_code=404, detail="El ramo no existe en el catálogo.")
+        nombre_ramo = _normalizar_nombre(ramo_data.data[0]["nombre"])
+
+        notas_resp = supabase.table("notas_api").select("nombre, nota") \
+            .eq("rut_estudiante", postulacion.rut_estudiante).gte("nota", 4.0).execute()
+        
+        aprobo = any(_normalizar_nombre(n["nombre"]) == nombre_ramo for n in notas_resp.data)
+        if not aprobo:
             raise HTTPException(status_code=403, detail="No cumples el requisito de nota (>= 4.0) para postular.")
 
+        # 3. Verificar si el estudiante ya postuló a este NRC
         ya_postulo = supabase.table("postulaciones").select("id") \
             .eq("rut_estudiante", postulacion.rut_estudiante) \
             .eq("nrc", postulacion.nrc_ramo) \
@@ -218,18 +228,21 @@ def crear_postulacion(postulacion: Postulacion):
         if ya_postulo.data:
             raise HTTPException(status_code=400, detail="Ya tienes una postulación en revisión para este NRC.")
 
+        # 4. Insertar la postulación (Dejamos que Supabase asigne el ID automáticamente)
         supabase.table("postulaciones").insert({
             "nrc": postulacion.nrc_ramo,
             "rut_estudiante": postulacion.rut_estudiante,
-            "estado": "revision",
-            "fecha_postulacion": datetime.now(timezone.utc).isoformat(),
+            "estado": "revision"
         }).execute()
 
-        return {"mensaje": "Postulación guardada correctamente"}
+        return {"mensaje": "Postulación enviada exitosamente"}
+
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail="No fue posible guardar la postulación.")
+        # Si Supabase falla por otra cosa (ej: llave foránea), ahora verás la razón real en consola y en el navegador
+        print(f"Error grave en BD al postular: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 def _enriquecer_postulaciones(postulaciones_raw):
@@ -290,6 +303,22 @@ def _enriquecer_postulaciones(postulaciones_raw):
             "correo": info_est.get("correo"),
         })
     return resultado
+
+@app.get("/api/admin/ramos/{codigo}/nrcs")
+def obtener_nrcs_por_codigo(codigo: str):
+    """
+    Busca todos los NRC históricos en notas_api asociados a un código de ramo
+    para sugerirlos en el panel de administración.
+    """
+    try:
+        resp = supabase.table("notas_api").select("nrc").eq("codigo", codigo).execute()
+        # Filtramos duplicados usando un set y ordenamos los resultados
+        nrcs_unicos = sorted(list({n["nrc"] for n in resp.data if n.get("nrc")}))
+        return nrcs_unicos
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 
 
 @app.get("/api/postulaciones")
@@ -641,13 +670,27 @@ class ConfiguracionAyudantia(BaseModel):
 def abrir_ayudantia(config: ConfiguracionAyudantia):
     """Crea una nueva apertura de ayudantía"""
     try:
-        supabase.table("configuracion_ayudantias").upsert({
+        payload = {
             "nrc": config.nrc,
             "codigo_ramo": config.codigo_ramo,
             "rut_profesor": limpiar_rut(config.rut_profesor),
             "cupos": config.cupos,
             "esta_abierto": True
-        }, on_conflict="nrc").execute()
+        }
+
+        # Verificamos si ya existe la configuración para ese NRC
+        existe = supabase.table("configuracion_ayudantias").select("id").eq("nrc", config.nrc).execute()
+
+        if existe.data:
+            # Si existe, actualizamos los datos
+            supabase.table("configuracion_ayudantias").update(payload).eq("nrc", config.nrc).execute()
+        else:
+            # Si no existe, creamos el registro
+            supabase.table("configuracion_ayudantias").insert(payload).execute()
+
         return {"mensaje": "Ayudantía configurada y abierta correctamente"}
+    
     except Exception as e:
+        # Añadir un print te ayudará a ver en tu terminal de Python exactamente qué falla si ocurre de nuevo
+        print(f"Error interno al guardar ayudantía: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
