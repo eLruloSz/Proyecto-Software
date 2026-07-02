@@ -699,7 +699,34 @@ def abrir_ayudantia(config: ConfiguracionAyudantia):
     
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
+
+
+@app.delete("/api/admin/ayudantias/{nrc}")
+def eliminar_ayudantia(nrc: str):
+    """Elimina una ayudantía configurada siempre y cuando no tenga postulantes."""
+    try:
+        # 1. Verificamos si ya hay estudiantes que postularon a este NRC
+        postulaciones = supabase.table("postulaciones").select("id").eq("nrc", nrc).execute()
+        
+        if postulaciones.data and len(postulaciones.data) > 0:
+            raise HTTPException(
+                status_code=400, 
+                detail="No puedes eliminar esta ayudantía porque ya tiene estudiantes postulando. Te sugerimos cerrarla en su lugar."
+            )
+        
+        # 2. Si no hay postulantes, procedemos a borrar la configuración
+        res = supabase.table("configuracion_ayudantias").delete().eq("nrc", nrc).execute()
+        
+        if not res.data:
+            raise HTTPException(status_code=404, detail="La ayudantía no fue encontrada en la base de datos.")
+            
+        return {"mensaje": "Ayudantía eliminada correctamente."}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error al eliminar ayudantía: {str(e)}")
+        raise HTTPException(status_code=400, detail="Error interno al intentar eliminar la ayudantía.")
 
 @app.get("/api/postulaciones/estudiante")
 def obtener_postulaciones_estudiante(rut_estudiante: str):

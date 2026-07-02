@@ -77,13 +77,20 @@ async function cargarAyudantiasConfiguradas() {
     }
 
     grid.innerHTML = data.map(c => `
-      <div class="dash-course-card" style="border-left: 4px solid var(--warning);">
+      <div class="dash-course-card" style="border-left: 4px solid var(--warning); position: relative;">
+        <button onclick="eliminarAyudantia('${c.codigo_nrc}')" 
+                style="position: absolute; top: 12px; right: 12px; background: transparent; border: none; color: var(--danger); cursor: pointer; font-size: 1.1rem; padding: 4px; transition: 0.2s;" 
+                onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"
+                title="Eliminar esta ayudantía">
+          <i class="fas fa-trash-alt"></i>
+        </button>
+        
         <div class="card-top">
           <span class="course-code">NRC: ${c.codigo_nrc}</span>
-          <span style="font-size:0.8rem; color:var(--muted);">${c.cupos} cupos</span>
+          <span style="font-size:0.8rem; color:var(--muted); margin-right: 30px;">${c.cupos} cupos</span>
         </div>
-        <h3>${c.nombre_ramo}</h3>
-        <div class="meta"><i class="fas fa-chalkboard-teacher"></i> Docente: ${c.id_profesor_encargado}</div>
+        <h3 style="padding-right: 20px;">${c.nombre_ramo}</h3>
+        <div class="meta"><i class="fas fa-id-badge"></i> RUT Prof: ${c.id_profesor_encargado}</div>
         <div class="meta"><i class="fas fa-users"></i> ${c.postulantes} Postulantes actuales</div>
         <div style="margin-top: 10px; font-size:0.8rem; font-weight:bold; color: ${c.esta_abierto ? 'var(--success)' : 'var(--danger)'}">
           ${c.esta_abierto ? '● ABIERTA PARA POSTULAR' : '● CERRADA'}
@@ -92,6 +99,32 @@ async function cargarAyudantiasConfiguradas() {
     `).join('');
   } catch (error) {
     grid.innerHTML = '<p style="color:var(--danger);">Error al cargar las ayudantías.</p>';
+  }
+}
+
+// --- NUEVA FUNCIÓN PARA ELIMINAR AYUDANTÍA ---
+async function eliminarAyudantia(nrc) {
+  // Siempre es buena práctica pedir confirmación antes de un DELETE
+  const confirmar = confirm(`¿Estás seguro de que deseas eliminar la ayudantía para el NRC ${nrc}? Esta acción no se puede deshacer.`);
+  if (!confirmar) return;
+
+  try {
+    const response = await fetch(`${API_URL}/api/admin/ayudantias/${nrc}`, {
+      method: 'DELETE'
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || "Ocurrió un error al intentar eliminar la ayudantía.");
+    }
+
+    // Mostramos éxito y recargamos la grilla
+    showToast(`La ayudantía (NRC: ${nrc}) fue eliminada con éxito.`, 'success');
+    cargarAyudantiasConfiguradas();
+
+  } catch (error) {
+    console.error("Error al eliminar:", error);
+    showToast(error.message, 'error');
   }
 }
 
@@ -125,6 +158,48 @@ async function handleApertura(e) {
     showToast(error.message, 'error');
   } finally {
     btn.innerHTML = '<i class="fas fa-plus"></i> Abrir Ayudantía';
+    btn.disabled = false;
+  }
+}
+
+// --- NUEVA FUNCIÓN PARA GATILLAR LA SINCRONIZACIÓN CON LA API UCN ---
+async function sincronizarDatosUCN() {
+  const btn = document.getElementById('btnSincronizar');
+  if (!btn) return;
+
+  // Guardamos el estado original del botón y activamos el estado de carga
+  const textoOriginal = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sincronizando...';
+  btn.disabled = true;
+
+  try {
+    const response = await fetch(`${API_URL}/api/admin/sincronizar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ periodo: "202520" }) // Puedes ajustar el periodo por defecto según lo requieras
+    });
+
+    if (!response.ok) throw new Error('Ocurrió un problema al sincronizar con el servidor central de la UCN.');
+
+    const respuestaJson = await response.json();
+    const resumen = respuestaJson.data || {};
+
+    // Desplegamos un Toast detallando el éxito de la operación
+    showToast(
+      `¡Sincronización exitosa! Se procesaron ${resumen.asignaturas || 0} ramos, ${resumen.estudiantes || 0} estudiantes y ${resumen.notas || 0} calificaciones históricas.`, 
+      'success'
+    );
+
+    // Recargamos los selectores del formulario y las ayudantías para mostrar los datos recién importados
+    await cargarSelects();
+    await cargarAyudantiasConfiguradas();
+
+  } catch (error) {
+    console.error(error);
+    showToast(error.message || 'Error de conexión durante la sincronización.', 'error');
+  } finally {
+    // Restauramos el botón a su estado normal
+    btn.innerHTML = textoOriginal;
     btn.disabled = false;
   }
 }

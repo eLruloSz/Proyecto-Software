@@ -31,9 +31,15 @@
     <div class="app-content" style="padding-top: 2rem;">
       <div style="max-width: 960px; margin: 0 auto; padding: 0 1.5rem 4rem;">
 
-        <div style="margin-bottom: 2.5rem;">
-          <h2 style="font-size: 1.8rem;">Apertura de Ayudantías</h2>
-          <p style="color: var(--muted);">Configura qué asignaturas aceptarán postulaciones este semestre.</p>
+        <div style="margin-bottom: 2.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <h2 style="font-size: 1.8rem;">Apertura de Ayudantías</h2>
+            <p style="color: var(--muted);">Configura qué asignaturas aceptarán postulaciones este semestre.</p>
+          </div>
+          
+          <button id="btnSincronizar" class="btn btn-primary" onclick="sincronizarDatosUCN()" style="background: linear-gradient(135deg, var(--accent), var(--accent-deep)); box-shadow: 0 4px 16px var(--accent-glow);">
+            <i class="fas fa-sync-alt"></i> Sincronizar Datos UCN
+          </button>
         </div>
 
         <div class="panel-card" style="margin-bottom: 3rem;">
