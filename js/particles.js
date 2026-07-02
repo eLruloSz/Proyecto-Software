@@ -1,6 +1,3 @@
-/* ========================================
-       PARTÍCULAS EN CANVAS
-    ======================================== */
     const canvas = document.getElementById('particleCanvas');
     const ctx = canvas.getContext('2d');
     let particles = [];
@@ -38,7 +35,7 @@
         this.x += this.speedX;
         this.y += this.speedY;
 
-        // Interacción con mouse: las partículas se alejan suavemente
+        
         const dx = this.x - mouseX;
         const dy = this.y - mouseY;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -51,7 +48,7 @@
           this.opacity += (this.baseOpacity - this.opacity) * 0.05;
         }
 
-        // Wrap around
+        
         if (this.x < -10) this.x = canvas.width + 10;
         if (this.x > canvas.width + 10) this.x = -10;
         if (this.y < -10) this.y = canvas.height + 10;
@@ -66,7 +63,7 @@
       }
     }
 
-    // Crear partículas (cantidad según tamaño de pantalla)
+    
     function initParticles() {
       const count = Math.min(80, Math.floor((canvas.width * canvas.height) / 15000));
       particles = [];
@@ -105,7 +102,7 @@
       requestAnimationFrame(animateParticles);
     }
 
-    // Respetar preferencia de movimiento reducido
+   
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!prefersReduced) {
       animateParticles();

@@ -1,21 +1,15 @@
-/* ========================================
-   docente.js
-   Lógica exclusiva de docente.html (sirve tanto a rol 'docente' como 'admin').
-   ======================================== */
-
 let pendingAction = null;
 let datosGlobalesRamos = [];     
 let datosGlobalesPostulaciones = []; 
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Si no hay sesión de docente/admin válida, redirige a index.html
   const sesion = Sesion.exigirRol(['profesor', 'admin']);
   if (!sesion) return;
 
   rutProfesorActual = sesion.rol === 'profesor' ? sesion.rut : null;
   enterDocentePage(sesion.rol, sesion.nombre);
 
-  // Listener del modal de confirmación
+  
   document.getElementById('confirmActionBtn').addEventListener('click', async () => {
     if (!pendingAction) return;
     const btn = document.getElementById('confirmActionBtn');
@@ -82,9 +76,7 @@ function renderizarPanelDocente(ramos, postulaciones) {
   let html = '';
 
   ramos.forEach(curso => {
-    // FIX: antes se intentaba ordenar "postulantesCurso" antes de declararla (ReferenceError).
-    // Ahora se declara primero y se ordena después, dentro del mismo scope del forEach.
-    const postulantesCurso = postulaciones.filter(
+     const postulantesCurso = postulaciones.filter(
       p => p.nrc_ramo === curso.codigo_nrc && p.estado !== 'rechazado'
     );
     postulantesCurso.sort((a, b) => b.nota_obtenida - a.nota_obtenida);
@@ -229,17 +221,16 @@ function descargarReporteExcel() {
     return;
   }
 
-  // Usamos \uFEFF para que Excel reconozca los acentos (UTF-8 BOM)
-  // Usamos punto y coma (;) porque es el separador estándar de Excel en español
+  
   let csvContent = "\uFEFF"; 
   csvContent += "NRC;Asignatura;RUT;Nombre Estudiante;Nota Asignatura;PPA;Estado\n";
 
   datosGlobalesPostulaciones.forEach(p => {
-    // Buscar el nombre del ramo cruzando los datos
+    
     const ramo = datosGlobalesRamos.find(r => r.codigo_nrc === p.nrc_ramo);
     const nombreRamo = ramo ? ramo.nombre_ramo : 'Desconocido';
 
-    // Limpiamos la data para que no rompa el CSV (quitamos posibles punto y comas en los nombres)
+    
     const nrc = p.nrc_ramo || '';
     const asig = nombreRamo.replace(/;/g, ',');
     const rut = p.rut_estudiante || '';
@@ -248,21 +239,21 @@ function descargarReporteExcel() {
     const nota = p.nota_obtenida || 'N/A';
     const ppa = p.ppa || 'N/A';
     
-    // Traducimos el estado para el Excel
+   
     let estadoTexto = 'En revisión';
     if (p.estado === 'aceptado') estadoTexto = 'Aprobado';
     if (p.estado === 'rechazado') estadoTexto = 'Rechazado';
 
-    // Armamos la fila
+   
     csvContent += `${nrc};${asig};${rut};${nombre};${nota};${ppa};${estadoTexto}\n`;
   });
 
-  // Creamos un Blob y forzamos la descarga del archivo .csv (Se abrirá nativamente en Excel)
+  
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   
-  // Nombre del archivo con la fecha de hoy
+  
   const fecha = new Date().toISOString().split('T')[0];
   link.setAttribute("href", url);
   link.setAttribute("download", `Postulantes_Ayudantias_${fecha}.csv`);

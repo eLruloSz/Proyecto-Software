@@ -1,9 +1,4 @@
 
-       /* ========================================
-       LANDING PAGE (Ahora conectada al Backend)
-    ======================================== */
-    
-    // Variable global para guardar los ramos que vienen de la BD
     let coursesData = []; 
 
     async function fetchAndRenderCourses() {
@@ -11,12 +6,12 @@
       grid.innerHTML = '<p style="color:var(--muted); text-align:center; grid-column: 1 / -1;">Cargando asignaturas...</p>';
 
       try {
-        // Hacer la petición a tu backend de FastAPI
+        
         const response = await fetch('http://127.0.0.1:8000/api/ramos');
         if (!response.ok) throw new Error("Error al conectar con el servidor");
         
         coursesData = await response.json();
-        renderCourses(); // Pintar los datos en el HTML
+        renderCourses(); 
       } catch (error) {
         console.error(error);
         grid.innerHTML = '<p style="color:var(--danger); text-align:center; grid-column: 1 / -1;">Error al cargar las asignaturas desde el servidor.</p>';
@@ -51,19 +46,14 @@
       else { showToast(`Debes iniciar sesión para postular a ${code}.`, 'info'); setTimeout(() => openModal('login'), 1200); }
     }
 
-    // Ejecutar la función al cargar la página
     fetchAndRenderCourses();
 
-        /* ========================================
-       ESTADO GLOBAL DE SESIÓN
-    ======================================== */
-    let currentUser = null; // Guardará { rut, nombre, correo, rol, ppa, carrera... }
-    let studentAvailableCourses = []; // Guardará los ramos donde puede postular (viene del backend)
-    let appliedCourses = []; // Ya no se llena a mano, se llena con el fetch de mis postulaciones
+       
+    let currentUser = null; 
+    let studentAvailableCourses = []; 
+    let appliedCourses = []; 
 
-    /* ========================================
-       MODAL LOGIN REAL (RUT + PASS)
-    ======================================== */
+  
     function openModal(type) {
       document.getElementById('modalTitle').textContent = 'Autenticación UCN';
       document.getElementById('modalBody').innerHTML = buildRealLogin();
@@ -120,7 +110,6 @@
         const data = await response.json();
 
         if (!response.ok) {
-          // Manejar primera vez (Activación)
           if (data.detail === 'NEEDS_ACTIVATION_STUDENT' || data.detail === 'NEEDS_ACTIVATION_PROFESSOR') {
             const rol = data.detail.includes('STUDENT') ? 'estudiante' : 'profesor';
             showActivationScreen(rut, rol);
@@ -192,16 +181,14 @@
         if (!response.ok) throw new Error(data.detail);
 
         showToast('Cuenta activada. Ya puedes iniciar sesión.', 'success');
-        openModal('login'); // Vuelve a mostrar el login normal
+        openModal('login');
       } catch (error) {
         errorDiv.textContent = error.message;
         errorDiv.style.display = 'block';
       }
     }
 
-    /* ========================================
-       LÓGICA APP PÁGINA ESTUDIANTE (REAL)
-    ======================================== */
+   
     async function enterStudentPage() {
       document.querySelector('.content-wrapper').style.display = 'none';
       document.querySelector('.bg-atmosphere').style.display = 'none';
@@ -210,14 +197,14 @@
       document.getElementById('app-estudiante').style.display = 'block';
       document.getElementById('perfilPPA').textContent = currentUser.ppa || 'No registrado';
       
-      // Inyectar datos REALES del backend
+     
       const initials = currentUser.nombre ? currentUser.nombre.split(' ').map(n => n[0]).join('') : '??';
       document.getElementById('headerAvatar').textContent = initials;
       document.getElementById('headerName').textContent = currentUser.nombre || currentUser.rut;
       document.getElementById('perfilNombre').textContent = currentUser.nombre;
       document.getElementById('perfilCorreo').textContent = currentUser.correo;
       
-      // Cargar datos reales desde el backend
+      
       await loadStudentCourses();
       await loadMyApplications();
     }
@@ -243,7 +230,7 @@
       }
 
       grid.innerHTML = studentAvailableCourses.map(c => {
-        // Mapeamos los campos que devuelve el nuevo endpoint de Supabase
+      
         const nombreRamo = c.ramos ? c.ramos.nombre : 'Sin nombre';
         const isApplied = appliedCourses.some(app => app.nrc === c.nrc);
         
@@ -274,7 +261,7 @@
         if (!response.ok) throw new Error(data.detail);
 
         showToast(data.message, 'success');
-        // Recargamos las dos listas para actualizar botones y tabla
+        
         await loadStudentCourses();
         await loadMyApplications();
       } catch (error) {
@@ -305,7 +292,7 @@
         const response = await fetch(`http://127.0.0.1:8000/api/estudiante/${currentUser.rut}/mis-postulaciones`);
         const data = await response.json();
         
-        appliedCourses = data; // Actualizamos el estado global
+        appliedCourses = data; 
         
         if (data.length === 0) {
           tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:2rem;">No tienes postulaciones activas.</td></tr>`;
@@ -343,9 +330,7 @@
       }
     }
 
-    /* ========================================
-       LÓGICA APP PÁGINA DOCENTE / ADMIN (Sin cambios, solo ajuste de variables)
-    ======================================== */
+    
     let pendingAction = null;
 
     function enterDocentePage(role, email) {
@@ -355,7 +340,7 @@
       document.querySelector('#particleCanvas').style.display = 'none';
       document.getElementById('app-docente').style.display = 'block';
 
-      // Usamos currentUser en vez de extractedUserName
+      
       const nameToShow = currentUser ? currentUser.nombre : 'Docente';
       const initials = nameToShow.split(' ').map(n => n[0]).join('').toUpperCase();
       
@@ -378,13 +363,11 @@
         cerrarModalConfirmacion();
       });
 
-      // Nota: cargarPanelDocente() fallará hasta que creemos esos endpoints en FastAPI
+      
       cargarPanelDocente(); 
     }
 
-    /* ========================================
-       UTILIDADES (Toasts, Nav, Partículas)
-    ======================================== */
+    
     function showToast(message, type = 'info') {
       const container = document.getElementById('toastContainer');
       const toast = document.createElement('div'); toast.className = `toast ${type}`;
@@ -394,7 +377,7 @@
       setTimeout(() => { toast.classList.add('toast-out'); setTimeout(() => toast.remove(), 300); }, 3500);
     }
 
-    // Navbar Landing
+    
     const navbar = document.getElementById('navbar'); 
     const navToggle = document.getElementById('navToggle'); 
     const navLinks = document.getElementById('navLinks');
@@ -409,7 +392,7 @@
       link.addEventListener('click', () => { navLinks.classList.remove('mobile-open'); navToggle.innerHTML = '<i class="fas fa-bars"></i>'; });
     });
 
-    // Scroll Reveal & Counters
+    
     const revealObserver = new IntersectionObserver((entries) => { entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('visible'); }); }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
     document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
     

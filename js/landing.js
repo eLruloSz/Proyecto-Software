@@ -1,10 +1,3 @@
-/* ========================================
-   landing.js
-   Lógica exclusiva de index.html (portada pública):
-   - Listado de asignaturas destacadas
-   - Navbar / scroll / contadores animados
-   ======================================== */
-
 let coursesData = [];
 
 async function fetchAndRenderCourses() {
@@ -53,7 +46,7 @@ function handleCourseClick(code, open) {
 
 fetchAndRenderCourses();
 
-/* ---------- Navbar / scroll / contadores ---------- */
+
 document.addEventListener('DOMContentLoaded', () => {
   const navbar = document.getElementById('navbar');
   const navToggle = document.getElementById('navToggle');
